@@ -6,21 +6,62 @@ export default function AssignmentModal({
   open, onClose,
   resourceNodes, taskNodes, edges,
   onApplyResult,
+  initialResult,
 }) {
   const [step,   setStep]   = useState("menu");
   const [error,  setError]  = useState("");
   const [result, setResult] = useState(null);
   const [mode,   setMode]   = useState(null);
-  // índice de la solución alternativa que se muestra en la tabla
+  
   const [altIdx, setAltIdx] = useState(0);
+
 
   useEffect(() => {
     if (!open) return;
-    setStep("menu");
-    setError("");
-    setResult(null);
-    setMode(null);
-    setAltIdx(0);
+    if (initialResult) {
+      // Reconstruir el estado de resultado desde el resultado guardado
+      const m = initialResult.mode?.replace("assignment-", "") ?? "min";
+      setMode(m);
+      setStep("result");
+      setAltIdx(0);
+      setResult({
+        hun: null,
+        buildRows: () => [],
+        buildHighlight: () => ({ edgeIds: new Set(), nodeIds: new Set() }),
+        totalCost: initialResult.totalCost,
+        paddedRows: 0,
+        paddedCols: 0,
+        alternativeSolutions: initialResult.alternativeSolutions ?? [],
+        hasMultipleSolutions: initialResult.hasMultipleSolutions ?? false,
+        rows: (() => {
+          const rows = [];
+          for (const edgeId of initialResult.assignedEdgeIds) {
+            const edge = edges.find(e => e.id === edgeId);
+            if (!edge) continue;
+            const resNode = resourceNodes.find(n => n.id === edge.from || n.id === edge.to);
+            const taskNode = taskNodes.find(n => n.id === edge.to || n.id === edge.from);
+            if (resNode && taskNode) {
+              rows.push({
+                resourceName: resNode.label || String(resNode.id),
+                taskName: taskNode.label || String(taskNode.id),
+                cost: edge.weight ?? 1,
+                isFictResource: false,
+                isFictTask: false,
+              });
+            }
+          }
+          return rows;
+        })(),
+        assignedEdgeIds: initialResult.assignedEdgeIds,
+        assignedNodeIds: initialResult.assignedNodeIds,
+      });
+    } else {
+      setStep("menu");
+      setError("");
+      setResult(null);
+      setMode(null);
+      setAltIdx(0);
+    }
   }, [open]);
 
   if (!open) return null;
@@ -30,7 +71,7 @@ export default function AssignmentModal({
     setMode(null);   setAltIdx(0); onClose();
   };
 
-  // ── Construir matriz de costos ────────────────────────────────────────────
+  
   const buildCostMatrix = () => {
     const r = resourceNodes.length;
     const t = taskNodes.length;
@@ -189,7 +230,7 @@ export default function AssignmentModal({
           )}
         </div>
 
-        {/* ── MENÚ ── */}
+        
         {step === "menu" && (
           <>
             <p style={subtitleStyle}>Elige el tipo de asignación que quieres resolver.</p>

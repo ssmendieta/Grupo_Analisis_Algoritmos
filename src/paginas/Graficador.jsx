@@ -64,7 +64,7 @@ const GraphEditor = () => {
   const [showJohnsonModal, setShowJohnsonModal] = useState(false);
   const [algorithmResult, setAlgorithmResult] = useState(null);
 
-  // ── ASSIGNMENT MODE ────────────────────────────────────────────────────────
+  
   const [assignmentMode, setAssignmentMode] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [assignmentResult, setAssignmentResult] = useState(null); // { assignedEdgeIds, assignedNodeIds, totalCost, mode, ... }
@@ -72,8 +72,9 @@ const GraphEditor = () => {
   const [showMatrizRtModal, setShowMatrizRtModal] = useState(false);
   const canvasRef = useRef(null);
   const [canvasWidth, setCanvasWidth] = useState(800);
+  const skipClearRef = useRef(false);
 
-  // Observar ancho del canvas para saber dónde cae el centro
+  
   useEffect(() => {
     if (!canvasRef.current) return;
     const ro = new ResizeObserver(entries => {
@@ -160,6 +161,10 @@ const GraphEditor = () => {
   useEffect(() => { sessionStorage.setItem('graph_hasWeights', JSON.stringify(hasWeights)); }, [hasWeights]);
 
   useEffect(() => {
+    if (skipClearRef.current) {
+      skipClearRef.current = false;
+      return;
+    }
     setAlgorithmResult(null);
     setAssignmentResult(null);
     setAssignmentMultiNotice(null);
@@ -187,8 +192,22 @@ const GraphEditor = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showWeightInput]);
 
-  const getGraphJSON = () =>
-    JSON.stringify({ isDirected, hasWeights, nodes, edges }, null, 2);
+  const getGraphJSON = () => {
+  const data = { isDirected, hasWeights, nodes, edges };
+  if (assignmentResult) {
+    data.savedAssignmentResult = {
+      mode: assignmentResult.mode,
+      totalCost: assignmentResult.totalCost,
+      hasMultipleSolutions: assignmentResult.hasMultipleSolutions ?? false,
+      alternativeSolutions: assignmentResult.alternativeSolutions ?? [],
+      assignedEdgeIds: [...assignmentResult.assignedEdgeIds],
+      assignedNodeIds: [...assignmentResult.assignedNodeIds],
+      resourceNodeIds: assignmentResult.resourceNodeIds ?? [],
+      taskNodeIds: assignmentResult.taskNodeIds ?? [],
+    };
+  }
+  return JSON.stringify(data, null, 2);
+  };
 
   const handleExportDownload = () => {
     const blob = new Blob([getGraphJSON()], { type: 'application/json' });
@@ -208,19 +227,47 @@ const GraphEditor = () => {
       if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
         throw new Error('Formato inválido: faltan "nodes" o "edges"');
       }
-      setNodes(data.nodes)
-      setEdges(data.edges)
-      if (typeof data.isDirected === 'boolean') setIsDirected(data.isDirected)
-      if (typeof data.hasWeights === 'boolean') setHasWeights(data.hasWeights)
-      const maxId = data.nodes.reduce((m, n) => Math.max(m, n.id), 0)
-      setNextNodeId(maxId + 1)
+
+      setNodes(data.nodes);
+      setEdges(data.edges);
+      if (typeof data.isDirected === 'boolean') setIsDirected(data.isDirected);
+      if (typeof data.hasWeights === 'boolean') setHasWeights(data.hasWeights);
+      const maxId = data.nodes.reduce((m, n) => Math.max(m, n.id), 0);
+      setNextNodeId(maxId + 1);
       setSelectedNode(null);
-      setShowSaveModal(false)
-      setImportText('')
-      setAlgorithmResult(null)
-      setAssignmentResult(null)
-      setAssignmentMultiNotice(null)
-      setShowMatrizRtModal(false)
+      setAlgorithmResult(null);
+      setImportText('');
+      setShowSaveModal(false);
+
+      skipClearRef.current = true;
+
+      if (data.savedAssignmentResult) {
+        const s = data.savedAssignmentResult;
+        setAssignmentResult({
+          mode: s.mode,
+          totalCost: s.totalCost,
+          hasMultipleSolutions: s.hasMultipleSolutions,
+          alternativeSolutions: s.alternativeSolutions,
+          assignedEdgeIds: new Set(s.assignedEdgeIds),
+          assignedNodeIds: new Set(s.assignedNodeIds),
+          resourceNodeIds: s.resourceNodeIds,
+          taskNodeIds: s.taskNodeIds,
+        });
+        setAssignmentMode(true);
+        setHasWeights(true);
+        setAssignmentMultiNotice(
+          s.hasMultipleSolutions && s.alternativeSolutions?.length > 1
+            ? { count: s.alternativeSolutions.length, totalCost: s.totalCost, mode: s.mode }
+            : null
+        );
+        setShowMatrizRtModal(true);
+      } else {
+        setAssignmentResult(null);
+        setAssignmentMode(false);
+        setAssignmentMultiNotice(null);
+        setShowMatrizRtModal(false);
+      }
+
     } catch (err) {
       setImportError(err.message);
     }
@@ -1060,7 +1107,7 @@ const GraphEditor = () => {
         )}
 
         {/* ── Matriz button (todas las herramientas) ── */}
-        <button
+        {/*<button
           onClick={handleMatrizClick}
           style={{
             margin: '0', padding: '0 28px', height: '48px',
@@ -1081,7 +1128,7 @@ const GraphEditor = () => {
           </svg>
           Matriz de Adyacencia
           {!hasWeights && <span style={{ fontSize: '10px', opacity: 0.6, fontWeight: '400', textTransform: 'none', letterSpacing: 0 }}>(requiere pesos)</span>}
-        </button>
+        </button>*/}
 
         {/* ── Footer ── */}
         <footer className="h-10 px-6 border-t border-white/5 bg-[#0d1117] flex items-center justify-between text-[10px] text-gray-500 font-mono uppercase tracking-widest">
@@ -1137,6 +1184,7 @@ const GraphEditor = () => {
           taskNodes={taskNodes}
           edges={edges}
           onApplyResult={handleAssignmentResult}
+          initialResult={assignmentResult}  // <-- nuevo prop
         />
 
         <MatrizRecursosTareasModal

@@ -24,7 +24,7 @@ const PaginaIncio = () => {
         <div className="flex items-center justify-center gap-4 mb-10">
           <div className="h-px w-12 bg-white/10" />
           <h2 className="text-2xl md:text-3xl font-light text-gray-400 italic">
-            Sergio Mendieta
+            Grupo Cameyoshi
           </h2>
           <div className="h-px w-12 bg-white/10" />
         </div>
