@@ -17,8 +17,12 @@ export function buildAssignmentCostMatrix(resourceNodes, taskNodes, edges) {
   const t = taskNodes.length;
   const matrix = Array.from({ length: r }, () => new Array(t).fill(null));
   for (const edge of edges) {
-    const ri = resourceNodes.findIndex((n) => n.id === edge.from || n.id === edge.to);
-    const ti = taskNodes.findIndex((n) => n.id === edge.to || n.id === edge.from);
+    const ri = resourceNodes.findIndex(
+      (n) => n.id === edge.from || n.id === edge.to,
+    );
+    const ti = taskNodes.findIndex(
+      (n) => n.id === edge.to || n.id === edge.from,
+    );
     if (ri === -1 || ti === -1) continue;
     const res = resourceNodes[ri];
     const tas = taskNodes[ti];
@@ -33,13 +37,22 @@ export function buildAssignmentCostMatrix(resourceNodes, taskNodes, edges) {
 /**
  * Conjunto "fila,col" de celdas que forman parte de la asignación óptima mostrada.
  */
-export function getAssignedRtCellKeys(resourceNodes, taskNodes, edges, assignedEdgeIds) {
+export function getAssignedRtCellKeys(
+  resourceNodes,
+  taskNodes,
+  edges,
+  assignedEdgeIds,
+) {
   const set = new Set();
   if (!assignedEdgeIds || typeof assignedEdgeIds.has !== "function") return set;
   for (const edge of edges) {
     if (!assignedEdgeIds.has(edge.id)) continue;
-    const ri = resourceNodes.findIndex((n) => n.id === edge.from || n.id === edge.to);
-    const ti = taskNodes.findIndex((n) => n.id === edge.to || n.id === edge.from);
+    const ri = resourceNodes.findIndex(
+      (n) => n.id === edge.from || n.id === edge.to,
+    );
+    const ti = taskNodes.findIndex(
+      (n) => n.id === edge.to || n.id === edge.from,
+    );
     if (ri === -1 || ti === -1) continue;
     const res = resourceNodes[ri];
     const tas = taskNodes[ti];

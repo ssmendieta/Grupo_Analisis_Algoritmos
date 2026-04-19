@@ -12,7 +12,9 @@ export function runCPM(nodes, edges, isDirected, hasWeights) {
   const cleanEdges = edges.map((e) => ({
     ...e,
     weight:
-      e.weight !== null && e.weight !== undefined && !Number.isNaN(Number(e.weight))
+      e.weight !== null &&
+      e.weight !== undefined &&
+      !Number.isNaN(Number(e.weight))
         ? Number(e.weight)
         : 1,
   }));
@@ -71,7 +73,9 @@ export function runCPM(nodes, edges, isDirected, hasWeights) {
       continue;
     }
 
-    late[u] = Math.min(...outgoing[u].map((edge) => late[edge.to] - edge.weight));
+    late[u] = Math.min(
+      ...outgoing[u].map((edge) => late[edge.to] - edge.weight),
+    );
   }
 
   const nodeSlack = {};

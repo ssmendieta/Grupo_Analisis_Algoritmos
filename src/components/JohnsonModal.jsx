@@ -21,7 +21,7 @@ export default function JohnsonModal({
 
   const nodeOptions = useMemo(
     () => nodes.map((n) => ({ value: n.id, label: n.label || String(n.id) })),
-    [nodes]
+    [nodes],
   );
 
   if (!open) return null;
@@ -118,8 +118,14 @@ export default function JohnsonModal({
         mode: "min",
         nodes: nodes.map((n) => ({
           ...n,
-          early: johnson.distances[numericSource][n.id] === Infinity ? "-" : johnson.distances[numericSource][n.id],
-          late: johnson.distances[numericSource][n.id] === Infinity ? "-" : johnson.distances[numericSource][n.id],
+          early:
+            johnson.distances[numericSource][n.id] === Infinity
+              ? "-"
+              : johnson.distances[numericSource][n.id],
+          late:
+            johnson.distances[numericSource][n.id] === Infinity
+              ? "-"
+              : johnson.distances[numericSource][n.id],
           critical: highlightPath.includes(n.id),
         })),
         edges: edges.map((e) => {
@@ -208,7 +214,13 @@ export default function JohnsonModal({
 
             {error && <p style={errorStyle}>{error}</p>}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginTop: 18,
+              }}
+            >
               <button onClick={resetAll} style={secondaryBtnStyle}>
                 Cerrar
               </button>
@@ -219,7 +231,8 @@ export default function JohnsonModal({
         {step === "min-source" && (
           <>
             <p style={subtitleStyle}>
-              Selecciona origen y, si quieres, un destino para resaltar el camino.
+              Selecciona origen y, si quieres, un destino para resaltar el
+              camino.
             </p>
 
             <div style={{ display: "grid", gap: 14 }}>
@@ -278,7 +291,10 @@ export default function JohnsonModal({
             {error && <p style={errorStyle}>{error}</p>}
 
             <div style={footerActionsStyle}>
-              <button onClick={() => setStep("min-source")} style={secondaryBtnStyle}>
+              <button
+                onClick={() => setStep("min-source")}
+                style={secondaryBtnStyle}
+              >
                 Volver
               </button>
               <button onClick={runMinimize} style={primaryBtnStyle}>
@@ -294,7 +310,8 @@ export default function JohnsonModal({
               <div
                 style={{
                   ...iconCircleStyle,
-                  borderColor: finalResult.type === "success" ? "#bbf7d0" : "#67e8f9",
+                  borderColor:
+                    finalResult.type === "success" ? "#bbf7d0" : "#67e8f9",
                 }}
               >
                 {finalResult.type === "success" ? (

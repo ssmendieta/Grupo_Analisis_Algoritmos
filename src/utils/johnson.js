@@ -13,7 +13,9 @@ export function buildGraphData(nodes, edges, isDirected, hasWeights) {
     from: e.from,
     to: e.to,
     weight:
-      e.weight !== null && e.weight !== undefined && !Number.isNaN(Number(e.weight))
+      e.weight !== null &&
+      e.weight !== undefined &&
+      !Number.isNaN(Number(e.weight))
         ? Number(e.weight)
         : 1,
   }));
@@ -36,7 +38,10 @@ function bellmanFord(nodeIds, edges, source) {
     let changed = false;
 
     for (const edge of edges) {
-      if (dist[edge.from] !== Infinity && dist[edge.from] + edge.weight < dist[edge.to]) {
+      if (
+        dist[edge.from] !== Infinity &&
+        dist[edge.from] + edge.weight < dist[edge.to]
+      ) {
         dist[edge.to] = dist[edge.from] + edge.weight;
         prev[edge.to] = edge.from;
         changed = true;
@@ -47,8 +52,13 @@ function bellmanFord(nodeIds, edges, source) {
   }
 
   for (const edge of edges) {
-    if (dist[edge.from] !== Infinity && dist[edge.from] + edge.weight < dist[edge.to]) {
-      throw new Error("El grafo contiene un ciclo negativo. Johnson no puede ejecutarse.");
+    if (
+      dist[edge.from] !== Infinity &&
+      dist[edge.from] + edge.weight < dist[edge.to]
+    ) {
+      throw new Error(
+        "El grafo contiene un ciclo negativo. Johnson no puede ejecutarse.",
+      );
     }
   }
 
@@ -115,7 +125,12 @@ function reconstructPath(prev, source, target) {
 }
 
 export function runJohnson(nodes, edges, isDirected, hasWeights) {
-  const { nodeIds, edges: cleanEdges } = buildGraphData(nodes, edges, isDirected, hasWeights);
+  const { nodeIds, edges: cleanEdges } = buildGraphData(
+    nodes,
+    edges,
+    isDirected,
+    hasWeights,
+  );
 
   const q = "__q__";
   const extendedNodes = [...nodeIds, q];
@@ -182,14 +197,28 @@ function topologicalSort(nodeIds, edges) {
   }
 
   if (order.length !== nodeIds.length) {
-    throw new Error("Para maximizar tipo CPM el grafo debe ser acíclico (DAG).");
+    throw new Error(
+      "Para maximizar tipo CPM el grafo debe ser acíclico (DAG).",
+    );
   }
 
   return order;
 }
 
-export function runCriticalPath(nodes, edges, isDirected, hasWeights, start, end) {
-  const { nodeIds, edges: cleanEdges } = buildGraphData(nodes, edges, isDirected, hasWeights);
+export function runCriticalPath(
+  nodes,
+  edges,
+  isDirected,
+  hasWeights,
+  start,
+  end,
+) {
+  const { nodeIds, edges: cleanEdges } = buildGraphData(
+    nodes,
+    edges,
+    isDirected,
+    hasWeights,
+  );
 
   const order = topologicalSort(nodeIds, cleanEdges);
 

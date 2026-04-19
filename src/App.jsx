@@ -1,58 +1,68 @@
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';  
-import Graficador from './paginas/Graficador'
-import GraficadorMenu from './paginas/GraficadorMenu'
-import AnalisisInfo from './paginas/AlgoInfo'
-import PaginaIncio from './paginas/PaginaInicio';
-import Matriz from './paginas/Matriz'
-import { useState } from 'react';
-import { Code } from 'lucide-react';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Code2, HelpCircle, Sparkles, X } from "lucide-react";
+import Graficador from "./paginas/Graficador";
+import GraficadorMenu from "./paginas/GraficadorMenu";
+import AnalisisInfo from "./paginas/AlgoInfo";
+import PaginaInicio from "./paginas/PaginaInicio";
+import Matriz from "./paginas/Matriz";
+import "./App.css";
 
-// Contenido de ayuda por ruta/tool
 const HELP_CONTENT = {
   johnson: {
-    title: "Johnson — Cómo usar",
-    color: "text-sky-400",
+    title: "Johnson · guía rápida",
+    badge: "Ruta crítica",
     steps: [
-      { icon: '🖱️', action: 'Doble clic', desc: 'en el canvas para crear un nodo' },
-      { icon: '🔗', action: 'Conectar', desc: 'clic derecho sobre un nodo → Conectar, luego clic en el destino' },
-      { icon: '⚖️', action: 'Pesos', desc: 'representan la duración de cada actividad' },
-      { icon: '▶', action: 'Botón Johnson', desc: 'calcula tiempos early/late y marca la ruta crítica en rojo' },
-      { icon: '📊', action: 'Nodos resultado', desc: 'muestran [early | late]; la holgura es late − early' },
+      "Haz doble clic en el lienzo para crear nodos.",
+      "Toca un nodo y luego otro para conectar origen y destino.",
+      "Usa clic derecho solo para renombrar o eliminar si lo necesitas.",
+      "El botón Johnson calcula early, late y marca la ruta crítica.",
     ],
   },
   asignacion: {
-    title: "Asignación — Cómo usar",
-    color: "text-emerald-400",
+    title: "Asignación · guía rápida",
+    badge: "Recursos y tareas",
     steps: [
-      { icon: '◀', action: 'Lado izquierdo', desc: 'coloca aquí los nodos de recursos (trabajadores, máquinas)' },
-      { icon: '▶', action: 'Lado derecho', desc: 'coloca aquí los nodos de tareas' },
-      { icon: '🔗', action: 'Conectar', desc: 'une cada recurso con sus tareas posibles y asigna un peso (costo o beneficio)' },
-      { icon: '⚠️', action: 'Matriz no cuadrada', desc: 'si hay distinto número de recursos y tareas se agregan ficticios automáticamente' },
-      { icon: '▶', action: 'Botón Asignación', desc: 'elige minimizar costo o maximizar beneficio; las aristas verdes muestran la solución' },
+      "Ubica recursos a la izquierda y tareas a la derecha.",
+      "Conecta nodos compatibles y asigna sus pesos.",
+      "Si hay más recursos o tareas, el sistema añade ficticios automáticamente.",
+      "Ejecuta Asignación para ver la solución mínima o máxima.",
+    ],
+  },
+  northwest: {
+    title: "Northwest · guía rápida",
+    badge: "Transporte",
+    steps: [
+      "Prepara orígenes, destinos, oferta y demanda.",
+      "Ingresa los costos de transporte correctamente.",
+      "Usa la ayuda del algoritmo para revisar el flujo paso a paso.",
+      "Luego podrás revisar la solución y la serie de iteraciones.",
     ],
   },
   editor: {
-    title: "Graficador — Cómo usar",
-    color: "text-violet-400",
+    title: "Graficador · guía rápida",
+    badge: "Edición libre",
     steps: [
-      { icon: '🖱️', action: 'Doble clic', desc: 'en el canvas para crear un nodo' },
-      { icon: '📋', action: 'Clic derecho', desc: 'sobre un nodo para conectar, renombrar o eliminar' },
-      { icon: '✏️', action: 'Aristas', desc: 'clic derecho sobre una arista para editar su peso' },
-      { icon: '✋', action: 'Arrastrar', desc: 'mantén presionado y mueve para reposicionar nodos' },
-      { icon: '💾', action: 'Guardar', desc: 'exporta el grafo como JSON e impórtalo para restaurarlo' },
+      "Doble clic crea nodos nuevos.",
+      "Un clic selecciona el nodo origen; otro clic crea la conexión.",
+      "Arrastra para reposicionar nodos.",
+      "Exporta e importa tu grafo desde el panel superior.",
     ],
   },
 };
 
 function getHelpForLocation(pathname, search) {
-  if (pathname === '/graficador/editor') {
-    const params = new URLSearchParams(search);
-    const tool = params.get('tool');
-    if (tool === 'johnson') return HELP_CONTENT.johnson;
-    if (tool === 'asignacion') return HELP_CONTENT.asignacion;
-    return HELP_CONTENT.editor;
-  }
-  return null; // en otras rutas no hay botón
+  if (pathname !== "/graficador/editor") return null;
+  const params = new URLSearchParams(search);
+  const tool = params.get("tool") || "editor";
+  return HELP_CONTENT[tool] || HELP_CONTENT.editor;
 }
 
 function NavBar() {
@@ -60,61 +70,103 @@ function NavBar() {
   const [showHelp, setShowHelp] = useState(false);
   const help = getHelpForLocation(location.pathname, location.search);
 
+  const items = useMemo(
+    () => [
+      { to: "/paginaInicio", label: "Inicio" },
+      { to: "/algoritmos", label: "¿Qué es un algoritmo?" },
+      { to: "/graficador", label: "Algoritmos" },
+    ],
+    [],
+  );
+
   return (
     <>
-      <nav className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#0a0c14] backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-2 group cursor-pointer">
-          <div className="bg-blue-600 p-1.5 rounded-lg group-hover:bg-blue-500 transition-colors">
-            <Code size={20} className="text-white" />
+      <header className="sticky top-0 z-50 border-b border-sky-100/10 bg-slate-950/70 backdrop-blur-xl">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Link to="/paginaInicio" className="group flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200/15 bg-sky-400/10 text-sky-200 shadow-[0_0_30px_rgba(56,189,248,0.12)] transition group-hover:scale-[1.03] group-hover:bg-sky-400/15">
+              <Code2 size={20} />
+            </div>
+            <div className="hidden sm:block">
+              <p className="soft-title text-[10px] font-semibold text-sky-200/60">
+                Proyecto visual
+              </p>
+              <p className="text-sm font-semibold text-white">
+                Análisis de Algoritmos
+              </p>
+            </div>
+          </Link>
+
+          <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 md:flex">
+            {items.map((item) => {
+              const active = location.pathname === item.to;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    active
+                      ? "bg-sky-300/15 text-sky-100 shadow-[0_0_24px_rgba(56,189,248,0.18)]"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
-        </div>
 
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
-          <Link to="/paginaInicio" className="text-white hover:text-blue-400">Inicio</Link>
-          <Link to="/algoritmos" className="text-white hover:text-blue-400">¿Qué es un algoritmo?</Link>
-          <Link to="/graficador" className="text-white hover:text-blue-400">Algoritmos</Link>
-        </div>
+          <div className="flex items-center gap-2">
+            {help && (
+              <button
+                onClick={() => setShowHelp(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-sky-200/10 bg-sky-300/10 px-4 py-2 text-sm font-medium text-sky-100 transition hover:border-sky-200/20 hover:bg-sky-300/15"
+              >
+                <HelpCircle size={16} />
+                Ayuda
+              </button>
+            )}
+          </div>
+        </nav>
+      </header>
 
-        <div className="flex items-center gap-4">
-          {help && (
-            <button
-              onClick={() => setShowHelp(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-            >
-              <span className="w-4 h-4 rounded-full border border-gray-500 flex items-center justify-center text-[10px] font-black">?</span>
-              Ayuda
-            </button>
-          )}
-        </div>
-      </nav>
-
-      {/* Panel de ayuda */}
       {showHelp && help && (
         <div
-          className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md"
           onClick={() => setShowHelp(false)}
         >
           <div
-            className="bg-[#0d1117] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            className="glass-panel cyber-shell w-full max-w-lg rounded-[28px] p-6 sm:p-7"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className={`font-bold text-sm ${help.color}`}>{help.title}</h2>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200/10 bg-sky-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-100/80">
+                  <Sparkles size={12} />
+                  {help.badge}
+                </div>
+                <h2 className="text-xl font-semibold text-white">
+                  {help.title}
+                </h2>
+              </div>
               <button
                 onClick={() => setShowHelp(false)}
-                className="text-gray-500 hover:text-white transition-colors text-lg leading-none"
+                className="rounded-full border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
-            <div className="space-y-2">
-              {help.steps.map((step, i) => (
-                <div key={i} className="flex gap-3 p-3 rounded-lg bg-white/3 border border-white/5">
-                  <span className="text-base flex-shrink-0">{step.icon}</span>
-                  <div>
-                    <span className={`text-xs font-bold ${help.color}`}>{step.action} </span>
-                    <span className="text-xs text-gray-400">{step.desc}</span>
-                  </div>
+
+            <div className="space-y-3">
+              {help.steps.map((step, index) => (
+                <div
+                  key={step}
+                  className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3"
+                >
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-100/55">
+                    Paso {index + 1}
+                  </p>
+                  <p className="text-sm leading-6 text-slate-200">{step}</p>
                 </div>
               ))}
             </div>
@@ -131,10 +183,10 @@ export default function App() {
       <NavBar />
       <Routes>
         <Route path="/" element={<Navigate to="/paginaInicio" replace />} />
+        <Route path="/paginaInicio" element={<PaginaInicio />} />
         <Route path="/algoritmos" element={<AnalisisInfo />} />
         <Route path="/graficador" element={<GraficadorMenu />} />
         <Route path="/graficador/editor" element={<Graficador />} />
-        <Route path="/paginaInicio" element={<PaginaIncio />} />
         <Route path="/matriz" element={<Matriz />} />
       </Routes>
     </Router>
