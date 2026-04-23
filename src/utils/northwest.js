@@ -1,7 +1,7 @@
 const EPSILON = 1e-9;
 
 function nearlyEqual(a, b, eps = EPSILON) {
-  return Math.abs(a - b) <= eps;
+  return Math.abs(Number(a || 0) - Number(b || 0)) <= eps;
 }
 
 function cloneMatrix(matrix) {
@@ -13,11 +13,12 @@ function createMatrix(rows, cols, fill = 0) {
 }
 
 function sumArray(arr) {
-  return arr.reduce((acc, val) => acc + Number(val || 0), 0);
+  return arr.reduce((acc, value) => acc + Number(value || 0), 0);
 }
 
-function isFiniteNumber(value) {
-  return Number.isFinite(Number(value));
+function sanitizeNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 export function validateTransportationInput(costs, supply, demand) {
@@ -58,22 +59,27 @@ export function validateTransportationInput(costs, supply, demand) {
     );
   }
 
-  for (let i = 0; i < rows; i++) {
+  for (let i = 0; i < rows; i += 1) {
     if (!Array.isArray(costs[i]) || costs[i].length !== cols) {
       errors.push(`La fila ${i + 1} de la matriz de costos no es rectangular.`);
       continue;
     }
-    for (let j = 0; j < cols; j++) {
+
+    for (let j = 0; j < cols; j += 1) {
       const value = Number(costs[i][j]);
       if (!Number.isFinite(value)) {
         errors.push(
           `El costo en la celda (${i + 1}, ${j + 1}) no es numérico.`,
         );
+      } else if (value < 0) {
+        errors.push(
+          `El costo en la celda (${i + 1}, ${j + 1}) no puede ser negativo.`,
+        );
       }
     }
   }
 
-  for (let i = 0; i < supply.length; i++) {
+  for (let i = 0; i < supply.length; i += 1) {
     const value = Number(supply[i]);
     if (!Number.isFinite(value)) {
       errors.push(`La oferta en la fila ${i + 1} no es numérica.`);
@@ -82,7 +88,7 @@ export function validateTransportationInput(costs, supply, demand) {
     }
   }
 
-  for (let j = 0; j < demand.length; j++) {
+  for (let j = 0; j < demand.length; j += 1) {
     const value = Number(demand[j]);
     if (!Number.isFinite(value)) {
       errors.push(`La demanda en la columna ${j + 1} no es numérica.`);
@@ -91,22 +97,13 @@ export function validateTransportationInput(costs, supply, demand) {
     }
   }
 
-  const totalSupply = sumArray(supply);
-  const totalDemand = sumArray(demand);
-
-  if (!nearlyEqual(totalSupply, totalDemand)) {
-    errors.push(
-      `La oferta total (${totalSupply}) debe ser igual a la demanda total (${totalDemand}).`,
-    );
-  }
-
   return {
     ok: errors.length === 0,
     errors,
     rows,
     cols,
-    totalSupply,
-    totalDemand,
+    totalSupply: sumArray(supply),
+    totalDemand: sumArray(demand),
   };
 }
 
@@ -114,49 +111,91 @@ export function isBalancedTransportationProblem(supply, demand) {
   return nearlyEqual(sumArray(supply), sumArray(demand));
 }
 
-function transformCostsForMode(costs, mode = "min") {
-  const numeric = costs.map((row) => row.map((v) => Number(v)));
+export function balanceTransportation(
+  costs,
+  supply,
+  demand,
+  rowLabels = [],
+  colLabels = [],
+) {
+  const totalSupply = sumArray(supply);
+  const totalDemand = sumArray(demand);
 
-  if (mode === "max") {
-    const maxValue = Math.max(...numeric.flat());
-    return numeric.map((row) => row.map((value) => maxValue - value));
+  const balancedCosts = cloneMatrix(costs).map((row) =>
+    row.map((v) => sanitizeNumber(v)),
+  );
+  const balancedSupply = supply.map((value) => sanitizeNumber(value));
+  const balancedDemand = demand.map((value) => sanitizeNumber(value));
+  const balancedRowLabels = rowLabels.length ? [...rowLabels] : [];
+  const balancedColLabels = colLabels.length ? [...colLabels] : [];
+
+  let addedType = null;
+  let difference = 0;
+
+  if (totalSupply > totalDemand) {
+    difference = totalSupply - totalDemand;
+    balancedDemand.push(difference);
+    for (let i = 0; i < balancedCosts.length; i += 1) {
+      balancedCosts[i].push(0);
+    }
+    if (balancedColLabels.length) balancedColLabels.push("Destino ficticio");
+    addedType = "column";
+  } else if (totalDemand > totalSupply) {
+    difference = totalDemand - totalSupply;
+    balancedSupply.push(difference);
+    balancedCosts.push(Array(balancedDemand.length).fill(0));
+    if (balancedRowLabels.length) balancedRowLabels.push("Origen ficticio");
+    addedType = "row";
   }
 
-  return numeric;
+  return {
+    costs: balancedCosts,
+    supply: balancedSupply,
+    demand: balancedDemand,
+    rowLabels: balancedRowLabels,
+    colLabels: balancedColLabels,
+    wasBalanced: addedType === null,
+    addedType,
+    difference,
+  };
+}
+
+function transformCostsForMode(costs, mode = "min") {
+  const numeric = costs.map((row) => row.map((v) => sanitizeNumber(v)));
+  if (mode !== "max") return numeric;
+
+  const maxValue = Math.max(...numeric.flat());
+  return numeric.map((row) => row.map((value) => maxValue - value));
 }
 
 export function calculateTransportationObjective(costs, allocation) {
   let total = 0;
-
-  for (let i = 0; i < costs.length; i++) {
-    for (let j = 0; j < costs[0].length; j++) {
-      total += Number(costs[i][j]) * Number(allocation[i][j] || 0);
+  for (let i = 0; i < costs.length; i += 1) {
+    for (let j = 0; j < costs[0].length; j += 1) {
+      total += sanitizeNumber(costs[i][j]) * sanitizeNumber(allocation[i][j]);
     }
   }
-
   return total;
 }
 
 export function buildObjectiveExpression(costs, allocation) {
-  const terms = [];
-
-  for (let i = 0; i < costs.length; i++) {
-    for (let j = 0; j < costs[0].length; j++) {
-      const x = Number(allocation[i][j] || 0);
-      if (x > EPSILON) {
-        terms.push(`(${x}×${Number(costs[i][j])})`);
+  const parts = [];
+  for (let i = 0; i < costs.length; i += 1) {
+    for (let j = 0; j < costs[0].length; j += 1) {
+      const qty = sanitizeNumber(allocation[i][j]);
+      if (qty > EPSILON) {
+        parts.push(`(${qty}×${sanitizeNumber(costs[i][j])})`);
       }
     }
   }
-
-  return terms.length ? terms.join(" + ") : "0";
+  return parts.length ? parts.join(" + ") : "0";
 }
 
 function countBasics(basic) {
   let total = 0;
-  for (let i = 0; i < basic.length; i++) {
-    for (let j = 0; j < basic[0].length; j++) {
-      if (basic[i][j]) total++;
+  for (let i = 0; i < basic.length; i += 1) {
+    for (let j = 0; j < basic[0].length; j += 1) {
+      if (basic[i][j]) total += 1;
     }
   }
   return total;
@@ -168,13 +207,13 @@ function buildBasisAdjacency(basic) {
   const totalNodes = m + n;
   const adj = Array.from({ length: totalNodes }, () => []);
 
-  for (let i = 0; i < m; i++) {
-    for (let j = 0; j < n; j++) {
+  for (let i = 0; i < m; i += 1) {
+    for (let j = 0; j < n; j += 1) {
       if (!basic[i][j]) continue;
-      const r = i;
-      const c = m + j;
-      adj[r].push(c);
-      adj[c].push(r);
+      const rowNode = i;
+      const colNode = m + j;
+      adj[rowNode].push(colNode);
+      adj[colNode].push(rowNode);
     }
   }
 
@@ -186,7 +225,6 @@ function hasPathBetweenRowAndColumn(basic, rowIndex, colIndex) {
   const start = rowIndex;
   const target = m + colIndex;
   const adj = buildBasisAdjacency(basic);
-
   const visited = new Set([start]);
   const queue = [start];
 
@@ -212,20 +250,16 @@ function ensureBasisCardinality(allocation, basic) {
 
   while (countBasics(basic) < needed) {
     let added = false;
-
-    for (let i = 0; i < m && !added; i++) {
-      for (let j = 0; j < n && !added; j++) {
+    for (let i = 0; i < m && !added; i += 1) {
+      for (let j = 0; j < n && !added; j += 1) {
         if (basic[i][j]) continue;
-
-        // Solo agregamos una básica cero si NO crea ciclo.
         if (!hasPathBetweenRowAndColumn(basic, i, j)) {
           basic[i][j] = true;
-          allocation[i][j] = Number(allocation[i][j] || 0);
+          allocation[i][j] = sanitizeNumber(allocation[i][j]);
           added = true;
         }
       }
     }
-
     if (!added) break;
   }
 
@@ -240,12 +274,10 @@ export function northwestInitialSolution(costs, supply, demand) {
 
   const m = supply.length;
   const n = demand.length;
-
   const allocation = createMatrix(m, n, 0);
   const basic = createMatrix(m, n, false);
-
-  const supplyLeft = supply.map(Number);
-  const demandLeft = demand.map(Number);
+  const supplyLeft = supply.map((value) => sanitizeNumber(value));
+  const demandLeft = demand.map((value) => sanitizeNumber(value));
 
   let i = 0;
   let j = 0;
@@ -262,10 +294,9 @@ export function northwestInitialSolution(costs, supply, demand) {
     const colEnded = nearlyEqual(demandLeft[j], 0);
 
     if (rowEnded && colEnded) {
-      // Degeneración: agregamos una básica cero si existe siguiente celda.
       if (i + 1 < m && j + 1 < n) {
         basic[i][j + 1] = true;
-        allocation[i][j + 1] = Number(allocation[i][j + 1] || 0);
+        allocation[i][j + 1] = sanitizeNumber(allocation[i][j + 1]);
       }
       i += 1;
       j += 1;
@@ -281,15 +312,14 @@ export function northwestInitialSolution(costs, supply, demand) {
   return {
     allocation,
     basic,
-    supply: [...supply],
-    demand: [...demand],
+    supply: supply.map((value) => sanitizeNumber(value)),
+    demand: demand.map((value) => sanitizeNumber(value)),
   };
 }
 
 function computePotentials(costs, basic) {
   const m = costs.length;
   const n = costs[0].length;
-
   const u = Array(m).fill(null);
   const v = Array(n).fill(null);
 
@@ -298,29 +328,23 @@ function computePotentials(costs, basic) {
 
   while (changed) {
     changed = false;
-
-    for (let i = 0; i < m; i++) {
-      for (let j = 0; j < n; j++) {
+    for (let i = 0; i < m; i += 1) {
+      for (let j = 0; j < n; j += 1) {
         if (!basic[i][j]) continue;
 
         if (u[i] !== null && v[j] === null) {
-          v[j] = Number(costs[i][j]) - u[i];
+          v[j] = sanitizeNumber(costs[i][j]) - u[i];
           changed = true;
         } else if (u[i] === null && v[j] !== null) {
-          u[i] = Number(costs[i][j]) - v[j];
+          u[i] = sanitizeNumber(costs[i][j]) - v[j];
           changed = true;
         }
       }
     }
   }
 
-  // Si queda alguna componente desconectada, la fijamos en 0.
-  for (let i = 0; i < m; i++) {
-    if (u[i] === null) u[i] = 0;
-  }
-  for (let j = 0; j < n; j++) {
-    if (v[j] === null) v[j] = 0;
-  }
+  for (let i = 0; i < m; i += 1) if (u[i] === null) u[i] = 0;
+  for (let j = 0; j < n; j += 1) if (v[j] === null) v[j] = 0;
 
   return { u, v };
 }
@@ -330,9 +354,9 @@ function computeReducedCosts(costs, basic, u, v) {
   const n = costs[0].length;
   const reduced = createMatrix(m, n, 0);
 
-  for (let i = 0; i < m; i++) {
-    for (let j = 0; j < n; j++) {
-      reduced[i][j] = Number(costs[i][j]) - u[i] - v[j];
+  for (let i = 0; i < m; i += 1) {
+    for (let j = 0; j < n; j += 1) {
+      reduced[i][j] = sanitizeNumber(costs[i][j]) - u[i] - v[j];
     }
   }
 
@@ -342,14 +366,12 @@ function computeReducedCosts(costs, basic, u, v) {
 function chooseEnteringCell(costs, basic, reduced) {
   const m = costs.length;
   const n = costs[0].length;
-
   let bestValue = 0;
   let bestPos = null;
 
-  for (let i = 0; i < m; i++) {
-    for (let j = 0; j < n; j++) {
+  for (let i = 0; i < m; i += 1) {
+    for (let j = 0; j < n; j += 1) {
       if (basic[i][j]) continue;
-
       const delta = reduced[i][j];
       if (delta < bestValue - EPSILON) {
         bestValue = delta;
@@ -359,20 +381,15 @@ function chooseEnteringCell(costs, basic, reduced) {
   }
 
   return bestPos
-    ? {
-        row: bestPos[0],
-        col: bestPos[1],
-        reducedCost: bestValue,
-      }
+    ? { row: bestPos[0], col: bestPos[1], reducedCost: bestValue }
     : null;
 }
 
 function findPathInBasis(basic, startRow, targetCol) {
   const m = basic.length;
-  const adj = buildBasisAdjacency(basic);
-
   const start = startRow;
   const target = m + targetCol;
+  const adj = buildBasisAdjacency(basic);
 
   const parent = Array(m + basic[0].length).fill(-1);
   const visited = new Set([start]);
@@ -381,7 +398,6 @@ function findPathInBasis(basic, startRow, targetCol) {
   while (queue.length) {
     const node = queue.shift();
     if (node === target) break;
-
     for (const next of adj[node]) {
       if (!visited.has(next)) {
         visited.add(next);
@@ -391,18 +407,14 @@ function findPathInBasis(basic, startRow, targetCol) {
     }
   }
 
-  if (!visited.has(target)) {
-    return null;
-  }
+  if (!visited.has(target)) return null;
 
   const pathNodes = [];
   let cur = target;
-
   while (cur !== -1) {
     pathNodes.push(cur);
     cur = parent[cur];
   }
-
   pathNodes.reverse();
   return pathNodes;
 }
@@ -410,24 +422,18 @@ function findPathInBasis(basic, startRow, targetCol) {
 function buildCycleFromEnteringCell(basic, enteringRow, enteringCol) {
   const m = basic.length;
   const pathNodes = findPathInBasis(basic, enteringRow, enteringCol);
-
-  if (!pathNodes || pathNodes.length < 2) {
-    return null;
-  }
+  if (!pathNodes || pathNodes.length < 2) return null;
 
   const cycle = [{ row: enteringRow, col: enteringCol }];
-
-  for (let k = 0; k < pathNodes.length - 1; k++) {
+  for (let k = 0; k < pathNodes.length - 1; k += 1) {
     const a = pathNodes[k];
     const b = pathNodes[k + 1];
-
     if (a < m && b >= m) {
       cycle.push({ row: a, col: b - m });
     } else if (a >= m && b < m) {
       cycle.push({ row: b, col: a - m });
     }
   }
-
   return cycle;
 }
 
@@ -442,15 +448,13 @@ function applyCycleUpdate(allocation, basic, cycle) {
 
   const theta = Math.min(
     ...negativeCells.map(({ row, col }) =>
-      Number(updatedAllocation[row][col] || 0),
+      sanitizeNumber(updatedAllocation[row][col]),
     ),
   );
 
-  if (!Number.isFinite(theta) || theta < EPSILON) {
-    return null;
-  }
+  if (!Number.isFinite(theta) || theta < EPSILON) return null;
 
-  for (let idx = 0; idx < cycle.length; idx++) {
+  for (let idx = 0; idx < cycle.length; idx += 1) {
     const { row, col } = cycle[idx];
     if (idx % 2 === 0) {
       updatedAllocation[row][col] += theta;
@@ -463,7 +467,6 @@ function applyCycleUpdate(allocation, basic, cycle) {
   updatedBasic[entering.row][entering.col] = true;
 
   let leavingCell = null;
-
   for (let idx = 1; idx < cycle.length; idx += 2) {
     const { row, col } = cycle[idx];
     if (nearlyEqual(updatedAllocation[row][col], 0)) {
@@ -473,9 +476,7 @@ function applyCycleUpdate(allocation, basic, cycle) {
     }
   }
 
-  if (leavingCell) {
-    updatedBasic[leavingCell.row][leavingCell.col] = false;
-  }
+  if (leavingCell) updatedBasic[leavingCell.row][leavingCell.col] = false;
 
   ensureBasisCardinality(updatedAllocation, updatedBasic);
 
@@ -514,10 +515,7 @@ function snapshotIteration({
       allocation,
     ),
     objectiveExpression: buildObjectiveExpression(costsOriginal, allocation),
-    potentials: {
-      u: [...u],
-      v: [...v],
-    },
+    potentials: { u: [...u], v: [...v] },
     reducedCosts: cloneMatrix(reducedCosts),
     enteringCell: entering
       ? {
@@ -538,28 +536,54 @@ export function solveTransportationProblem({
   costs,
   supply,
   demand,
+  rowLabels = [],
+  colLabels = [],
   mode = "min",
   maxIterations = 10,
 }) {
   const validation = validateTransportationInput(costs, supply, demand);
-
   if (!validation.ok) {
-    return {
-      ok: false,
-      errors: validation.errors,
-    };
+    return { ok: false, errors: validation.errors };
   }
 
-  const numericCosts = costs.map((row) => row.map(Number));
-  const workingCosts = transformCostsForMode(numericCosts, mode);
+  const balanced = balanceTransportation(
+    costs,
+    supply,
+    demand,
+    rowLabels,
+    colLabels,
+  );
+  const numericCosts = balanced.costs.map((row) =>
+    row.map((v) => sanitizeNumber(v)),
+  );
+  const balancedSupply = balanced.supply.map((v) => sanitizeNumber(v));
+  const balancedDemand = balanced.demand.map((v) => sanitizeNumber(v));
+  const balancedRowLabels =
+    balanced.rowLabels.length > 0
+      ? balanced.rowLabels
+      : Array.from(
+          { length: balancedSupply.length },
+          (_, i) => `Origen ${i + 1}`,
+        );
+  const balancedColLabels =
+    balanced.colLabels.length > 0
+      ? balanced.colLabels
+      : Array.from(
+          { length: balancedDemand.length },
+          (_, i) => `Destino ${i + 1}`,
+        );
 
-  const initial = northwestInitialSolution(workingCosts, supply, demand);
+  const workingCosts = transformCostsForMode(numericCosts, mode);
+  const initial = northwestInitialSolution(
+    workingCosts,
+    balancedSupply,
+    balancedDemand,
+  );
   let allocation = cloneMatrix(initial.allocation);
   let basic = initial.basic.map((row) => [...row]);
-
   const iterations = [];
 
-  for (let iter = 1; iter <= maxIterations; iter++) {
+  for (let iter = 1; iter <= maxIterations; iter += 1) {
     const { u, v } = computePotentials(workingCosts, basic);
     const reducedCosts = computeReducedCosts(workingCosts, basic, u, v);
     const entering = chooseEnteringCell(workingCosts, basic, reducedCosts);
@@ -588,8 +612,10 @@ export function solveTransportationProblem({
         mode,
         balanced: true,
         costs: numericCosts,
-        supply: [...supply],
-        demand: [...demand],
+        supply: [...balancedSupply],
+        demand: [...balancedDemand],
+        rowLabels: [...balancedRowLabels],
+        colLabels: [...balancedColLabels],
         initialAllocation: cloneMatrix(initial.allocation),
         allocation: cloneMatrix(allocation),
         basic: basic.map((row) => [...row]),
@@ -610,33 +636,16 @@ export function solveTransportationProblem({
     }
 
     const cycle = buildCycleFromEnteringCell(basic, entering.row, entering.col);
-
     if (!cycle || cycle.length < 4) {
-      iterations.push(
-        snapshotIteration({
-          iteration: iter,
-          costsOriginal: numericCosts,
-          costsWorking: workingCosts,
-          allocation,
-          basic,
-          u,
-          v,
-          reducedCosts,
-          entering,
-          cycle: null,
-          theta: null,
-          leavingCell: null,
-          mode,
-        }),
-      );
-
       return {
         ok: true,
         mode,
         balanced: true,
         costs: numericCosts,
-        supply: [...supply],
-        demand: [...demand],
+        supply: [...balancedSupply],
+        demand: [...balancedDemand],
+        rowLabels: [...balancedRowLabels],
+        colLabels: [...balancedColLabels],
         initialAllocation: cloneMatrix(initial.allocation),
         allocation: cloneMatrix(allocation),
         basic: basic.map((row) => [...row]),
@@ -657,33 +666,16 @@ export function solveTransportationProblem({
     }
 
     const updated = applyCycleUpdate(allocation, basic, cycle);
-
     if (!updated) {
-      iterations.push(
-        snapshotIteration({
-          iteration: iter,
-          costsOriginal: numericCosts,
-          costsWorking: workingCosts,
-          allocation,
-          basic,
-          u,
-          v,
-          reducedCosts,
-          entering,
-          cycle,
-          theta: null,
-          leavingCell: null,
-          mode,
-        }),
-      );
-
       return {
         ok: true,
         mode,
         balanced: true,
         costs: numericCosts,
-        supply: [...supply],
-        demand: [...demand],
+        supply: [...balancedSupply],
+        demand: [...balancedDemand],
+        rowLabels: [...balancedRowLabels],
+        colLabels: [...balancedColLabels],
         initialAllocation: cloneMatrix(initial.allocation),
         allocation: cloneMatrix(allocation),
         basic: basic.map((row) => [...row]),
@@ -702,13 +694,16 @@ export function solveTransportationProblem({
       };
     }
 
+    allocation = updated.allocation;
+    basic = updated.basic;
+
     iterations.push(
       snapshotIteration({
         iteration: iter,
         costsOriginal: numericCosts,
         costsWorking: workingCosts,
-        allocation: updated.allocation,
-        basic: updated.basic,
+        allocation,
+        basic,
         u,
         v,
         reducedCosts,
@@ -719,9 +714,6 @@ export function solveTransportationProblem({
         mode,
       }),
     );
-
-    allocation = updated.allocation;
-    basic = updated.basic;
   }
 
   return {
@@ -729,8 +721,10 @@ export function solveTransportationProblem({
     mode,
     balanced: true,
     costs: numericCosts,
-    supply: [...supply],
-    demand: [...demand],
+    supply: [...balancedSupply],
+    demand: [...balancedDemand],
+    rowLabels: [...balancedRowLabels],
+    colLabels: [...balancedColLabels],
     initialAllocation: cloneMatrix(initial.allocation),
     allocation: cloneMatrix(allocation),
     basic: basic.map((row) => [...row]),
@@ -742,44 +736,47 @@ export function solveTransportationProblem({
     ),
     iterations,
     hasMoreSolutions: true,
-    stopReason: `Se alcanzó el máximo de iteraciones permitido (${maxIterations}).`,
+    stopReason: "Se alcanzó el máximo número de iteraciones.",
   };
 }
 
 export function getSolutionSeries(result) {
   if (!result?.ok) return [];
 
-  const solutions = [];
+  const solutions = [
+    {
+      allocation: cloneMatrix(result.initialAllocation || result.allocation),
+      objectiveValue: calculateTransportationObjective(
+        result.costs,
+        result.initialAllocation || result.allocation,
+      ),
+      objectiveExpression: buildObjectiveExpression(
+        result.costs,
+        result.initialAllocation || result.allocation,
+      ),
+    },
+  ];
 
-  solutions.push({
-    label: "Solución inicial",
-    allocation: cloneMatrix(result.initialAllocation),
-    objectiveValue: calculateTransportationObjective(
-      result.costs,
-      result.initialAllocation,
-    ),
-    objectiveExpression: buildObjectiveExpression(
-      result.costs,
-      result.initialAllocation,
-    ),
-    theta: null,
-  });
-
-  for (let i = 0; i < (result.iterations || []).length; i++) {
-    const step = result.iterations[i];
-    if (!step?.allocation) continue;
-
-    solutions.push({
-      label: `Solución ${i + 2}`,
-      allocation: cloneMatrix(step.allocation),
-      objectiveValue: step.objectiveValue,
-      objectiveExpression: step.objectiveExpression,
-      theta: step.theta,
-      enteringCell: step.enteringCell,
-      leavingCell: step.leavingCell,
-      cycle: step.cycle || [],
-    });
+  for (const step of result.iterations || []) {
+    if (step?.allocation) {
+      solutions.push({
+        allocation: cloneMatrix(step.allocation),
+        objectiveValue: step.objectiveValue,
+        objectiveExpression: step.objectiveExpression,
+      });
+    }
   }
 
-  return solutions;
+  const unique = [];
+  const seen = new Set();
+
+  for (const item of solutions) {
+    const key = JSON.stringify(item.allocation);
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
+  }
+
+  return unique;
 }

@@ -1,14 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Calculator,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Download,
-  FileJson,
   Grid3X3,
-  Info,
   Lightbulb,
   Play,
   Plus,
@@ -18,9 +14,9 @@ import {
   X,
 } from "lucide-react";
 import {
+  balanceTransportation,
   getSolutionSeries,
   solveTransportationProblem,
-  validateTransportationInput,
 } from "../utils/northwest";
 import {
   buildNorthwestExportPayload,
@@ -32,6 +28,7 @@ function createMatrix(rows, cols, fill = 0) {
 }
 
 function numberValue(value, fallback = 0) {
+  if (value === "" || value === null || value === undefined) return fallback;
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 }
@@ -39,6 +36,12 @@ function numberValue(value, fallback = 0) {
 function formatNumber(value) {
   const num = Number(value || 0);
   return Number.isInteger(num) ? String(num) : num.toFixed(2);
+}
+
+function displayEditorValue(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const normalized = Number(value);
+  return Number.isFinite(normalized) ? String(normalized) : "";
 }
 
 function createLabels(prefix, count) {
@@ -170,7 +173,6 @@ function cellHeatStyle(cost, allocation) {
 function buildIterationMessage(step, rowLabels, colLabels, costs, mode) {
   if (!step?.allocation) return null;
 
-  const previous = step.iteration === 1 ? null : null;
   if (step.enteringCell && Number.isFinite(step.theta) && step.theta > 0) {
     const rowLabel =
       rowLabels[step.enteringCell.row] || `Origen ${step.enteringCell.row + 1}`;
@@ -224,6 +226,169 @@ function buildIterationMessage(step, rowLabels, colLabels, costs, mode) {
   };
 }
 
+function toolbarButtonStyle(variant = "soft") {
+  const map = {
+    add: {
+      background: "linear-gradient(135deg, #7286ff, #8b5cf6)",
+      border: "1px solid rgba(191,219,254,0.14)",
+      color: "#f8fbff",
+    },
+    remove: {
+      background:
+        "linear-gradient(135deg, rgba(37,99,235,0.28), rgba(59,130,246,0.18))",
+      border: "1px solid rgba(255,255,255,0.12)",
+      color: "#fff7fb",
+    },
+    solve: {
+      background: "linear-gradient(135deg, #38bdf8, #22d3ee)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      color: "#f8fbff",
+    },
+    neutral: {
+      background: "rgba(255,255,255,0.05)",
+      border: "1px solid rgba(255,255,255,0.14)",
+      color: "#dbeafe",
+    },
+  };
+
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "14px 20px",
+    borderRadius: 14,
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 8px 22px rgba(0,0,0,0.12)",
+    ...map[variant],
+  };
+}
+
+function statCardStyle(accent) {
+  return {
+    borderRadius: 18,
+    padding: "16px 18px",
+    background: "rgba(11, 19, 39, 0.82)",
+    border: `1px solid ${accent}`,
+    boxShadow: "0 12px 26px rgba(0,0,0,0.18)",
+  };
+}
+
+function sectionCardStyle() {
+  return {
+    borderRadius: 26,
+    padding: 22,
+    background:
+      "linear-gradient(180deg, rgba(22,30,62,0.8), rgba(17,24,50,0.82))",
+    border: "1px solid rgba(255,255,255,0.06)",
+    boxShadow: "0 20px 54px rgba(0,0,0,0.18)",
+  };
+}
+
+function tableHeadStyle(isCorner = false) {
+  return {
+    background: isCorner ? "rgba(2,6,23,0.96)" : "rgba(67,76,102,0.72)",
+    color: "#ebf4ff",
+    border: "1px solid rgba(255,255,255,0.1)",
+    padding: "14px 12px",
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: 500,
+  };
+}
+
+function tableRowHeaderStyle() {
+  return {
+    background: "rgba(31, 42, 70, 0.88)",
+    color: "#88c4ff",
+    border: "1px solid rgba(255,255,255,0.08)",
+    padding: "14px 12px",
+    textAlign: "center",
+    minWidth: 120,
+    fontSize: 16,
+    fontWeight: 500,
+  };
+}
+
+function tableCellStyle() {
+  return {
+    border: "1px solid rgba(255,255,255,0.08)",
+    padding: "14px 10px",
+    textAlign: "center",
+    color: "#edf6ff",
+    fontSize: 16,
+  };
+}
+
+function editorInputStyle(variant = "cell") {
+  const isHeader = variant === "header";
+  const isSupply = variant === "supply";
+  const disabled = variant === "disabled";
+
+  return {
+    width: "100%",
+    minWidth: isHeader ? 120 : 88,
+    borderRadius: 10,
+    outline: "none",
+    border: disabled
+      ? "1px dashed rgba(148,163,184,0.22)"
+      : isSupply
+        ? "1px solid rgba(250,204,21,0.32)"
+        : "1px solid rgba(148,163,184,0.14)",
+    background: disabled
+      ? "rgba(30,41,59,0.48)"
+      : isHeader
+        ? "rgba(18, 28, 54, 0.82)"
+        : isSupply
+          ? "rgba(25, 37, 67, 0.92)"
+          : "rgba(15, 23, 42, 0.82)",
+    color: disabled ? "#94a3b8" : isSupply ? "#f8fafc" : "#edf6ff",
+    padding: "10px 12px",
+    textAlign: "center",
+    fontSize: 15,
+    boxSizing: "border-box",
+  };
+}
+
+function navButtonStyle(disabled) {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 14,
+    padding: "12px 18px",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: disabled
+      ? "rgba(148,163,184,0.14)"
+      : "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(241,245,249,0.96))",
+    color: disabled ? "rgba(15,23,42,0.28)" : "#0f172a",
+    fontWeight: 700,
+    cursor: disabled ? "not-allowed" : "pointer",
+  };
+}
+
+function stepBadgeStyle() {
+  return {
+    borderRadius: 14,
+    padding: "12px 18px",
+    background: "rgba(67,82,124,0.56)",
+    color: "#f8fbff",
+    fontSize: 15,
+    fontWeight: 500,
+  };
+}
+
+function infoChipStyle() {
+  return {
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.06)",
+    padding: "10px 14px",
+    color: "#d7e7f8",
+    fontSize: 14,
+  };
+}
+
 function ResultSection({ result, series, rowLabels, colLabels, costs, mode }) {
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -256,13 +421,7 @@ function ResultSection({ result, series, rowLabels, colLabels, costs, mode }) {
         );
 
   return (
-    <section
-      style={{
-        marginTop: 28,
-        display: "grid",
-        gap: 18,
-      }}
-    >
+    <section style={{ marginTop: 28, display: "grid", gap: 18 }}>
       <div
         style={{
           borderRadius: 28,
@@ -295,8 +454,8 @@ function ResultSection({ result, series, rowLabels, colLabels, costs, mode }) {
               Resultados
             </h2>
             <p style={{ margin: "8px 0 0", color: "#9db4d8", fontSize: 15 }}>
-              Se valida que oferta total y demanda total sean iguales antes de
-              resolver.
+              Si oferta y demanda no coinciden, el sistema balancea
+              automáticamente antes de resolver.
             </p>
           </div>
 
@@ -508,11 +667,8 @@ function ResultSection({ result, series, rowLabels, colLabels, costs, mode }) {
                 <thead>
                   <tr>
                     <th style={tableHeadStyle(true)} />
-                    {colLabels.map((label, index) => (
-                      <th
-                        key={`${label}-${index}-step`}
-                        style={tableHeadStyle()}
-                      >
+                    {colLabels.map((_, index) => (
+                      <th key={`step-head-${index}`} style={tableHeadStyle()}>
                         D{index + 1}
                       </th>
                     ))}
@@ -596,173 +752,6 @@ function ResultSection({ result, series, rowLabels, colLabels, costs, mode }) {
   );
 }
 
-function toolbarButtonStyle(variant = "soft") {
-  const map = {
-    add: {
-      background: "linear-gradient(135deg, #7286ff, #8b5cf6)",
-      border: "1px solid rgba(191,219,254,0.14)",
-      color: "#f8fbff",
-    },
-    remove: {
-      background:
-        "linear-gradient(135deg, rgba(37,99,235,0.28), rgba(59,130,246,0.18))",
-      border: "1px solid rgba(255,255,255,0.12)",
-      color: "#fff7fb",
-    },
-    mode: {
-      background: "linear-gradient(135deg, #fb7185, #facc15)",
-      border: "1px solid rgba(255,255,255,0.12)",
-      color: "#111827",
-    },
-    solve: {
-      background: "linear-gradient(135deg, #38bdf8, #22d3ee)",
-      border: "1px solid rgba(255,255,255,0.12)",
-      color: "#f8fbff",
-    },
-    neutral: {
-      background: "rgba(255,255,255,0.05)",
-      border: "1px solid rgba(255,255,255,0.14)",
-      color: "#dbeafe",
-    },
-    ghost: {
-      background: "rgba(15, 23, 42, 0.55)",
-      border: "1px solid rgba(148,163,184,0.18)",
-      color: "#d7e7f8",
-    },
-  };
-
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "14px 20px",
-    borderRadius: 14,
-    fontSize: 15,
-    fontWeight: 700,
-    cursor: "pointer",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.12)",
-    ...map[variant],
-  };
-}
-
-function statCardStyle(accent) {
-  return {
-    borderRadius: 18,
-    padding: "16px 18px",
-    background: "rgba(11, 19, 39, 0.82)",
-    border: `1px solid ${accent}`,
-    boxShadow: "0 12px 26px rgba(0,0,0,0.18)",
-  };
-}
-
-function sectionCardStyle() {
-  return {
-    borderRadius: 26,
-    padding: 22,
-    background:
-      "linear-gradient(180deg, rgba(22,30,62,0.8), rgba(17,24,50,0.82))",
-    border: "1px solid rgba(255,255,255,0.06)",
-    boxShadow: "0 20px 54px rgba(0,0,0,0.18)",
-  };
-}
-
-function tableHeadStyle(isCorner = false) {
-  return {
-    background: isCorner ? "rgba(2,6,23,0.96)" : "rgba(67,76,102,0.72)",
-    color: "#ebf4ff",
-    border: "1px solid rgba(255,255,255,0.1)",
-    padding: "14px 12px",
-    textAlign: "center",
-    fontSize: 15,
-    fontWeight: 500,
-  };
-}
-
-function tableRowHeaderStyle() {
-  return {
-    background: "rgba(31, 42, 70, 0.88)",
-    color: "#88c4ff",
-    border: "1px solid rgba(255,255,255,0.08)",
-    padding: "14px 12px",
-    textAlign: "center",
-    minWidth: 120,
-    fontSize: 16,
-    fontWeight: 500,
-  };
-}
-
-function tableCellStyle() {
-  return {
-    border: "1px solid rgba(255,255,255,0.08)",
-    padding: "14px 10px",
-    textAlign: "center",
-    color: "#edf6ff",
-    fontSize: 16,
-  };
-}
-
-function editorInputStyle(variant = "cell") {
-  const isHeader = variant === "header";
-  const isSupply = variant === "supply";
-  return {
-    width: "100%",
-    minWidth: isHeader ? 120 : 88,
-    borderRadius: 10,
-    outline: "none",
-    border: isSupply
-      ? "1px solid rgba(250,204,21,0.32)"
-      : "1px solid rgba(148,163,184,0.14)",
-    background: isHeader
-      ? "rgba(18, 28, 54, 0.82)"
-      : isSupply
-        ? "rgba(25, 37, 67, 0.92)"
-        : "rgba(15, 23, 42, 0.82)",
-    color: isSupply ? "#f8fafc" : "#edf6ff",
-    padding: "10px 12px",
-    textAlign: "center",
-    fontSize: 15,
-    boxSizing: "border-box",
-  };
-}
-
-function navButtonStyle(disabled) {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: 14,
-    padding: "12px 18px",
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: disabled
-      ? "rgba(148,163,184,0.14)"
-      : "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(241,245,249,0.96))",
-    color: disabled ? "rgba(15,23,42,0.28)" : "#0f172a",
-    fontWeight: 700,
-    cursor: disabled ? "not-allowed" : "pointer",
-  };
-}
-
-function stepBadgeStyle() {
-  return {
-    borderRadius: 14,
-    padding: "12px 18px",
-    background: "rgba(67,82,124,0.56)",
-    color: "#f8fbff",
-    fontSize: 15,
-    fontWeight: 500,
-  };
-}
-
-function infoChipStyle() {
-  return {
-    borderRadius: 12,
-    background: "rgba(255,255,255,0.06)",
-    padding: "10px 14px",
-    color: "#d7e7f8",
-    fontSize: 14,
-  };
-}
-
 export default function NorthwestModal({
   open = true,
   onClose,
@@ -842,11 +831,6 @@ export default function NorthwestModal({
       };
     }
 
-    const validation = validateTransportationInput(costs, supply, demand);
-    if (!validation.ok) {
-      return { ok: false, errors: validation.errors };
-    }
-
     return {
       ok: true,
       costs,
@@ -857,24 +841,51 @@ export default function NorthwestModal({
     };
   }, [inputMode, graphPreview, costs, supply, demand, rowLabels, colLabels]);
 
-  const totals = useMemo(() => {
-    const source = currentData.ok
+  const balancedPreview = useMemo(() => {
+    const base = currentData.ok
       ? currentData
-      : { supply, demand, costs, rowLabels, colLabels };
+      : { costs, supply, demand, rowLabels, colLabels };
+
+    const balanced = balanceTransportation(
+      base.costs,
+      base.supply,
+      base.demand,
+      base.rowLabels,
+      base.colLabels,
+    );
 
     return {
-      rows: source.costs.length,
-      cols: source.costs[0]?.length || 0,
-      totalSupply: source.supply.reduce(
+      costs: balanced.costs,
+      supply: balanced.supply,
+      demand: balanced.demand,
+      rowLabels:
+        balanced.rowLabels.length > 0
+          ? balanced.rowLabels
+          : [...base.rowLabels],
+      colLabels:
+        balanced.colLabels.length > 0
+          ? balanced.colLabels
+          : [...base.colLabels],
+      addedType: balanced.addedType,
+      difference: balanced.difference,
+      wasBalanced: balanced.wasBalanced,
+    };
+  }, [currentData, costs, supply, demand, rowLabels, colLabels]);
+
+  const totals = useMemo(() => {
+    return {
+      rows: balancedPreview.costs.length,
+      cols: balancedPreview.costs[0]?.length || 0,
+      totalSupply: balancedPreview.supply.reduce(
         (acc, value) => acc + numberValue(value),
         0,
       ),
-      totalDemand: source.demand.reduce(
+      totalDemand: balancedPreview.demand.reduce(
         (acc, value) => acc + numberValue(value),
         0,
       ),
     };
-  }, [currentData, supply, demand, costs, rowLabels, colLabels]);
+  }, [balancedPreview]);
 
   if (!open) return null;
 
@@ -960,15 +971,27 @@ export default function NorthwestModal({
   };
 
   const solveNow = () => {
-    if (!currentData.ok) {
-      setErrors(currentData.errors || ["Los datos no son válidos."]);
+    const hasInvalidShape =
+      !Array.isArray(costs) ||
+      !costs.length ||
+      costs.some(
+        (row) => !Array.isArray(row) || row.length !== demand.length,
+      ) ||
+      supply.length !== costs.length;
+
+    if (hasInvalidShape) {
+      setErrors([
+        "La matriz, la oferta y la demanda no tienen dimensiones válidas.",
+      ]);
       return;
     }
 
     const solved = solveTransportationProblem({
-      costs: currentData.costs,
-      supply: currentData.supply,
-      demand: currentData.demand,
+      costs,
+      supply,
+      demand,
+      rowLabels,
+      colLabels,
       mode: objectiveMode,
       maxIterations: numberValue(maxIterations, 6),
     });
@@ -987,31 +1010,26 @@ export default function NorthwestModal({
       type: "northwest",
       source: inputMode,
       objectiveMode,
-      costs: currentData.costs,
-      supply: currentData.supply,
-      demand: currentData.demand,
-      rowLabels: currentData.rowLabels,
-      colLabels: currentData.colLabels,
+      costs: solved.costs,
+      supply: solved.supply,
+      demand: solved.demand,
+      rowLabels: solved.rowLabels,
+      colLabels: solved.colLabels,
       result: solved,
       solutionSeries: series,
     });
   };
 
   const exportJson = () => {
-    if (!currentData.ok) {
-      setErrors(currentData.errors || ["Los datos no son válidos."]);
-      return;
-    }
-
     const payload = buildNorthwestExportPayload({
       name: jsonName || "northwest",
       mode: objectiveMode,
       source: inputMode,
-      costs: currentData.costs,
-      supply: currentData.supply,
-      demand: currentData.demand,
-      rowLabels: currentData.rowLabels,
-      colLabels: currentData.colLabels,
+      costs,
+      supply,
+      demand,
+      rowLabels,
+      colLabels,
       result,
     });
 
@@ -1061,7 +1079,7 @@ export default function NorthwestModal({
     event.target.value = "";
   };
 
-  const modeButton = (modeValue, label, subtitle) => ({
+  const modeButton = (modeValue) => ({
     display: "grid",
     gap: 4,
     minWidth: 180,
@@ -1083,9 +1101,9 @@ export default function NorthwestModal({
         : "none",
   });
 
-  const decorativeImageUrl = ""; // aquí puedes poner luego una URL o import de imagen decorativa
+  const decorativeImageUrl = "";
 
-  const actionButton = (label, icon, onClick, variant = "ghost") => (
+  const actionButton = (label, icon, onClick, variant = "neutral") => (
     <button
       type="button"
       onClick={onClick}
@@ -1209,15 +1227,11 @@ export default function NorthwestModal({
                   justifyContent: "center",
                 }}
               >
-                <ChevronRight
-                  size={18}
-                  style={{
-                    transform: showToolsPanel
-                      ? "rotate(90deg)"
-                      : "rotate(0deg)",
-                    transition: "transform 0.2s",
-                  }}
-                />
+                {showToolsPanel ? (
+                  <ChevronLeft size={18} />
+                ) : (
+                  <ChevronRight size={18} />
+                )}
                 Herramientas
               </button>
             </div>
@@ -1238,35 +1252,24 @@ export default function NorthwestModal({
                 textAlign: "center",
               }}
             >
-              <div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: "#9bb9da",
-                    marginBottom: 10,
-                  }}
-                ></div>
-                <div
+              <div
+                style={{
+                  width: "100%",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  boxShadow: "0 0 30px rgba(59,130,246,0.2)",
+                }}
+              >
+                <img
+                  src="/flor_northwest.jpeg"
+                  alt="Northwest visual"
                   style={{
                     width: "100%",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    boxShadow: "0 0 30px rgba(59,130,246,0.2)",
+                    height: 260,
+                    objectFit: "cover",
+                    opacity: 0.85,
                   }}
-                >
-                  <img
-                    src="/public/flor_northwset.jpeg"
-                    alt="Northwest visual"
-                    style={{
-                      width: "100%",
-                      height: 260,
-                      objectFit: "cover",
-                      opacity: 0.85,
-                    }}
-                  />
-                </div>
+                />
               </div>
             </div>
           ) : null}
@@ -1336,30 +1339,20 @@ export default function NorthwestModal({
               )}
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 12,
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: "#9db4d8", fontSize: 14 }}>
-                  Máx. iteraciones
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={maxIterations}
-                  onChange={(event) =>
-                    setMaxIterations(numberValue(event.target.value, 6))
-                  }
-                  style={{ ...editorInputStyle(), width: 90, minWidth: 90 }}
-                />
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ color: "#9db4d8", fontSize: 14 }}>
+                Máx. iteraciones
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={displayEditorValue(maxIterations)}
+                onChange={(event) =>
+                  setMaxIterations(numberValue(event.target.value, 6))
+                }
+                style={{ ...editorInputStyle(), width: 90, minWidth: 90 }}
+              />
             </div>
           </div>
         ) : null}
@@ -1426,7 +1419,7 @@ export default function NorthwestModal({
             Entrada
           </div>
           <div style={{ marginTop: 6, fontSize: 26, fontWeight: 700 }}>
-            Manual
+            {inputMode === "graph" ? "Graficadora" : "Manual"}
           </div>
         </div>
       </section>
@@ -1453,17 +1446,16 @@ export default function NorthwestModal({
           </div>
           <div
             style={{
-              color:
-                totals.totalSupply === totals.totalDemand
-                  ? "#86efac"
-                  : "#fca5a5",
+              color: balancedPreview.wasBalanced ? "#86efac" : "#fca5a5",
               fontSize: 14,
               fontWeight: 600,
             }}
           >
-            {totals.totalSupply === totals.totalDemand
+            {balancedPreview.wasBalanced
               ? "Balance correcto: ya puedes resolver."
-              : "Oferta y demanda deben ser exactamente iguales."}
+              : balancedPreview.addedType === "column"
+                ? `Se agrega automáticamente un destino ficticio por ${formatNumber(balancedPreview.difference)}.`
+                : `Se agrega automáticamente un origen ficticio por ${formatNumber(balancedPreview.difference)}.`}
           </div>
         </div>
 
@@ -1474,18 +1466,22 @@ export default function NorthwestModal({
             <thead>
               <tr>
                 <th style={tableHeadStyle(true)} />
-                {colLabels.map((label, index) => (
+                {balancedPreview.colLabels.map((label, index) => (
                   <th key={`${label}-${index}`} style={tableHeadStyle()}>
                     <input
                       value={label}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        if (index >= colLabels.length) return;
                         setColLabels((prev) =>
                           prev.map((item, i) =>
                             i === index ? event.target.value : item,
                           ),
-                        )
-                      }
-                      style={editorInputStyle("header")}
+                        );
+                      }}
+                      disabled={index >= colLabels.length}
+                      style={editorInputStyle(
+                        index >= colLabels.length ? "disabled" : "header",
+                      )}
                     />
                   </th>
                 ))}
@@ -1493,19 +1489,23 @@ export default function NorthwestModal({
               </tr>
             </thead>
             <tbody>
-              {costs.map((row, rowIndex) => (
+              {balancedPreview.costs.map((row, rowIndex) => (
                 <tr key={`editor-row-${rowIndex}`}>
                   <th style={tableRowHeaderStyle()}>
                     <input
-                      value={rowLabels[rowIndex]}
-                      onChange={(event) =>
+                      value={balancedPreview.rowLabels[rowIndex]}
+                      onChange={(event) => {
+                        if (rowIndex >= rowLabels.length) return;
                         setRowLabels((prev) =>
                           prev.map((item, i) =>
                             i === rowIndex ? event.target.value : item,
                           ),
-                        )
-                      }
-                      style={editorInputStyle("header")}
+                        );
+                      }}
+                      disabled={rowIndex >= rowLabels.length}
+                      style={editorInputStyle(
+                        rowIndex >= rowLabels.length ? "disabled" : "header",
+                      )}
                     />
                   </th>
                   {row.map((value, colIndex) => (
@@ -1515,29 +1515,49 @@ export default function NorthwestModal({
                     >
                       <input
                         type="number"
-                        value={value}
-                        onChange={(event) =>
-                          setCell(rowIndex, colIndex, event.target.value)
+                        value={displayEditorValue(value)}
+                        onChange={(event) => {
+                          if (
+                            rowIndex >= costs.length ||
+                            colIndex >= colLabels.length
+                          )
+                            return;
+                          setCell(rowIndex, colIndex, event.target.value);
+                        }}
+                        disabled={
+                          rowIndex >= costs.length ||
+                          colIndex >= colLabels.length
                         }
-                        style={editorInputStyle()}
+                        style={editorInputStyle(
+                          rowIndex >= costs.length ||
+                            colIndex >= colLabels.length
+                            ? "disabled"
+                            : "cell",
+                        )}
                       />
                     </td>
                   ))}
                   <td style={tableCellStyle()}>
                     <input
                       type="number"
-                      value={supply[rowIndex]}
-                      onChange={(event) =>
-                        setSupplyValue(rowIndex, event.target.value)
-                      }
-                      style={editorInputStyle("supply")}
+                      value={displayEditorValue(
+                        balancedPreview.supply[rowIndex],
+                      )}
+                      onChange={(event) => {
+                        if (rowIndex >= supply.length) return;
+                        setSupplyValue(rowIndex, event.target.value);
+                      }}
+                      disabled={rowIndex >= supply.length}
+                      style={editorInputStyle(
+                        rowIndex >= supply.length ? "disabled" : "supply",
+                      )}
                     />
                   </td>
                 </tr>
               ))}
               <tr>
                 <th style={tableRowHeaderStyle()}>Demanda</th>
-                {demand.map((value, colIndex) => (
+                {balancedPreview.demand.map((value, colIndex) => (
                   <td
                     key={`demand-${colIndex}`}
                     style={{
@@ -1547,21 +1567,24 @@ export default function NorthwestModal({
                   >
                     <input
                       type="number"
-                      value={value}
-                      onChange={(event) =>
-                        setDemandValue(colIndex, event.target.value)
-                      }
-                      style={editorInputStyle("supply")}
+                      value={displayEditorValue(value)}
+                      onChange={(event) => {
+                        if (colIndex >= demand.length) return;
+                        setDemandValue(colIndex, event.target.value);
+                      }}
+                      disabled={colIndex >= demand.length}
+                      style={editorInputStyle(
+                        colIndex >= demand.length ? "disabled" : "supply",
+                      )}
                     />
                   </td>
                 ))}
                 <td
                   style={{
                     ...tableCellStyle(),
-                    background:
-                      totals.totalSupply === totals.totalDemand
-                        ? "linear-gradient(135deg, rgba(20,83,45,0.42), rgba(21,128,61,0.22))"
-                        : "linear-gradient(135deg, rgba(127,29,29,0.42), rgba(153,27,27,0.22))",
+                    background: balancedPreview.wasBalanced
+                      ? "linear-gradient(135deg, rgba(20,83,45,0.42), rgba(21,128,61,0.22))"
+                      : "linear-gradient(135deg, rgba(127,29,29,0.42), rgba(153,27,27,0.22))",
                   }}
                 >
                   <div
@@ -1646,8 +1669,9 @@ export default function NorthwestModal({
           >
             <li>Agrega o elimina filas y columnas desde Herramientas.</li>
             <li>
-              Llena costos, oferta y demanda. Siempre deben sumar exactamente lo
-              mismo.
+              Llena costos, oferta y demanda. Si no coinciden, el sistema
+              balancea automáticamente con una fila o columna ficticia de costo
+              cero.
             </li>
             <li>Usa Minimizar para costos o Maximizar para beneficios.</li>
             <li>
@@ -1670,8 +1694,9 @@ export default function NorthwestModal({
             }}
           >
             <li>
-              La validación exige sin excepción que oferta total = demanda
-              total.
+              Si oferta y demanda no coinciden, se agrega automáticamente un
+              origen o destino ficticio con costo cero para balancear el
+              problema.
             </li>
             <li>
               Exportar JSON abre una ventana para que escribas el nombre antes
@@ -1692,9 +1717,9 @@ export default function NorthwestModal({
       <ResultSection
         result={result}
         series={solutionSeries}
-        rowLabels={currentData.ok ? currentData.rowLabels : rowLabels}
-        colLabels={currentData.ok ? currentData.colLabels : colLabels}
-        costs={currentData.ok ? currentData.costs : costs}
+        rowLabels={result?.rowLabels || balancedPreview.rowLabels}
+        colLabels={result?.colLabels || balancedPreview.colLabels}
+        costs={result?.costs || balancedPreview.costs}
         mode={objectiveMode}
       />
 
