@@ -9,13 +9,7 @@ import {
 } from "lucide-react";
 
 const TOOLS = [
-  {
-    id: "sorts",
-    title: "Sorts",
-    subtitle: "Visualización de ordenamiento: Selection, Insertion, Merge y Shell.",
-    tool: "sorts",
-    Icon: ArrowDown01,
-  },
+
   {
     id: "johnson",
     title: "Johnson",
@@ -43,6 +37,13 @@ const TOOLS = [
     subtitle: "Modo manual para crear y editar grafos.",
     tool: "editor",
     Icon: Boxes,
+  },
+  {
+    id: "sorts",
+    title: "Sorts",
+    subtitle: "Visualización de ordenamiento: Selection, Insertion, Merge y Shell.",
+    tool: "sorts",
+    Icon: ArrowDown01,
   },
 ];
 
