@@ -13,9 +13,20 @@ import GraficadorMenu from "./paginas/GraficadorMenu";
 import AnalisisInfo from "./paginas/AlgoInfo";
 import PaginaInicio from "./paginas/PaginaInicio";
 import Matriz from "./paginas/Matriz";
+import SortsPage from "./paginas/Sorts"; // <--- IMPORTANTE: Importamos la nueva página
 import "./App.css";
 
 const HELP_CONTENT = {
+  sorts: { // <--- Nueva guía de ayuda para Sorts
+    title: "Ordenamiento · guía rápida",
+    badge: "Algoritmos de Sort",
+    steps: [
+      "Ingresa los números separados por comas en el campo de texto.",
+      "Presiona 'Generar' para crear los rectángulos visuales.",
+      "Selecciona un algoritmo (Selection, Insertion o Shell) para iniciar.",
+      "Observa el panel lateral para ver el registro de cada intercambio.",
+    ],
+  },
   johnson: {
     title: "Johnson · guía rápida",
     badge: "Ruta crítica",
@@ -58,8 +69,11 @@ const HELP_CONTENT = {
   },
 };
 
+// Modificamos esta función para que reconozca la ruta de sorts
 function getHelpForLocation(pathname, search) {
+  if (pathname === "/graficador/sorts") return HELP_CONTENT.sorts; // <--- Ayuda directa para Sorts
   if (pathname !== "/graficador/editor") return null;
+  
   const params = new URLSearchParams(search);
   const tool = params.get("tool") || "editor";
   return HELP_CONTENT[tool] || HELP_CONTENT.editor;
@@ -187,6 +201,7 @@ export default function App() {
         <Route path="/algoritmos" element={<AnalisisInfo />} />
         <Route path="/graficador" element={<GraficadorMenu />} />
         <Route path="/graficador/editor" element={<Graficador />} />
+        <Route path="/graficador/sorts" element={<SortsPage />} /> {/* <--- RUTA PARA SORTS */}
         <Route path="/matriz" element={<Matriz />} />
       </Routes>
     </Router>
