@@ -24,11 +24,10 @@ import AssignmentModal from "../components/AsignacionModal.jsx";
 import MatrizRecursosTareasModal from "../components/MatrizRecursosTareasModal.jsx";
 import NorthwestModal from "../components/NorthwestModal.jsx";
 import MatrizTransporteModal from "../components/MatrizTransporteModal.jsx";
-import { getSolutionSeries } from "../utils/northwest";
 
 const GraphEditor = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const tool = useMemo(() => {
     const t = searchParams.get("tool");
@@ -42,15 +41,10 @@ const GraphEditor = () => {
     return "editor";
   }, [searchParams]);
 
-  const showAssignmentToolbar = tool === "asignacion";
-  const showJohnsonToolbar = tool === "johnson";
   const showNorthwestToolbar = tool === "northwest";
   const isAssignmentOnlyTool = tool === "asignacion";
-  const isJohnsonOnlyTool = tool === "johnson";
-  const isNorthwestOnlyTool = tool === "northwest";
   const hideEditorSidebar = tool === "northwest";
   const showFreeToolbar = tool === "editor";
-  const showSolveButton = tool === "johnson" || tool === "asignacion";
 
   const toolPrevRef = useRef(null);
 
@@ -92,8 +86,8 @@ const GraphEditor = () => {
 
   const [assignmentMode, setAssignmentMode] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  const [assignmentResult, setAssignmentResult] = useState(null); // { assignedEdgeIds, assignedNodeIds, totalCost, mode, ... }
-  const [assignmentMultiNotice, setAssignmentMultiNotice] = useState(null); // { count, totalCost, mode }
+  const [assignmentResult, setAssignmentResult] = useState(null); 
+  const [assignmentMultiNotice, setAssignmentMultiNotice] = useState(null); 
   const [showMatrizRtModal, setShowMatrizRtModal] = useState(false);
 
   const [northwestMode, setNorthwestMode] = useState(false);
@@ -118,7 +112,6 @@ const GraphEditor = () => {
 
   const dividerX = canvasWidth / 2;
 
-  // Clasificar nodos por su posición relativa a la línea divisoria
   const resourceNodes = useMemo(
     () =>
       assignmentMode || northwestMode
@@ -134,7 +127,6 @@ const GraphEditor = () => {
     [nodes, assignmentMode, northwestMode, dividerX],
   );
 
-  // Cuando se activa modo asignación: forzar hasWeights = true
   const openAsignacionModal = () => {
     if (!assignmentMode) {
       setHasWeights(true);
@@ -153,13 +145,6 @@ const GraphEditor = () => {
     setAssignmentMode(false);
   };
 
-  const exitNorthwestMode = () => {
-    if (isNorthwestOnlyTool) {
-      navigate("/graficador");
-      return;
-    }
-    setNorthwestMode(false);
-  };
 
   const handleNorthwestResult = (payload) => {
     setNorthwestResult(payload);
@@ -183,7 +168,6 @@ const GraphEditor = () => {
       setAssignmentMultiNotice(null);
     }
   };
-  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const prev = toolPrevRef.current;
@@ -622,7 +606,6 @@ const GraphEditor = () => {
   };
 
   const isNodeResource = (nodeId) => resourceNodes.some((n) => n.id === nodeId);
-  const isNodeTask = (nodeId) => taskNodes.some((n) => n.id === nodeId);
   const isNodeAssigned = (nodeId) =>
     assignmentResult?.assignedNodeIds?.has(nodeId);
 
@@ -1495,7 +1478,6 @@ const GraphEditor = () => {
                 const toNode = getNodeById(edge.to);
                 if (!fromNode || !toNode) return null;
 
-                // En modo asignación: usar colores de asignación
                 let edgeColor, edgeWidth;
                 if (assignmentMode) {
                   edgeColor = getAssignmentEdgeColor(edge);
@@ -1674,10 +1656,8 @@ const GraphEditor = () => {
             {/* ── NODOS ── */}
             {nodes.map((node) => {
               const isResource = assignmentMode && isNodeResource(node.id);
-              const isTask = assignmentMode && isNodeTask(node.id);
               const assigned = assignmentMode && isNodeAssigned(node.id);
 
-              // Modo asignación: nodos simples con color por rol
               if (assignmentMode) {
                 const bgColor = assigned
                   ? "#10b981"
@@ -1736,7 +1716,6 @@ const GraphEditor = () => {
                 );
               }
 
-              // Modo normal (sin resultado de algoritmo)
               const resultNode = algorithmResult?.nodes?.find(
                 (n) => n.id === node.id,
               );

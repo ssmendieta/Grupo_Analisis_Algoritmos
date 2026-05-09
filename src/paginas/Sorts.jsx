@@ -113,7 +113,7 @@ export default function SortsPage() {
           e.target.value = "";
           return;
         }
-      } catch (error) {
+      } catch {
         const newArray = parseArrayText(content);
 
         setInputValue(newArray.join(','));

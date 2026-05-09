@@ -1,6 +1,3 @@
-/**
- * Ordena nodos según los ids guardados al resolver (recursos filas, tareas columnas).
- */
 export function orderedNodesByIds(ids, allNodes) {
   if (!ids?.length) return [];
   return ids.map((id) => {
@@ -9,9 +6,6 @@ export function orderedNodesByIds(ids, allNodes) {
   });
 }
 
-/**
- * Matriz de costos: fila = recurso, columna = tarea. null si no hay arista.
- */
 export function buildAssignmentCostMatrix(resourceNodes, taskNodes, edges) {
   const r = resourceNodes.length;
   const t = taskNodes.length;
@@ -34,9 +28,6 @@ export function buildAssignmentCostMatrix(resourceNodes, taskNodes, edges) {
   return matrix;
 }
 
-/**
- * Conjunto "fila,col" de celdas que forman parte de la asignación óptima mostrada.
- */
 export function getAssignedRtCellKeys(
   resourceNodes,
   taskNodes,

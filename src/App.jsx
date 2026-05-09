@@ -13,11 +13,10 @@ import GraficadorMenu from "./paginas/GraficadorMenu";
 import AnalisisInfo from "./paginas/AlgoInfo";
 import PaginaInicio from "./paginas/PaginaInicio";
 import Matriz from "./paginas/Matriz";
-import SortsPage from "./paginas/Sorts"; // <--- IMPORTANTE: Importamos la nueva página
-import "./App.css";
+import SortsPage from "./paginas/Sorts"; 
 
 const HELP_CONTENT = {
-  sorts: { // <--- Nueva guía de ayuda para Sorts
+  sorts: {
     title: "Ordenamiento · guía rápida",
     badge: "Algoritmos de Sort",
     steps: [
@@ -69,9 +68,8 @@ const HELP_CONTENT = {
   },
 };
 
-// Modificamos esta función para que reconozca la ruta de sorts
 function getHelpForLocation(pathname, search) {
-  if (pathname === "/graficador/sorts") return HELP_CONTENT.sorts; // <--- Ayuda directa para Sorts
+  if (pathname === "/graficador/sorts") return HELP_CONTENT.sorts;
   if (pathname !== "/graficador/editor") return null;
   
   const params = new URLSearchParams(search);
