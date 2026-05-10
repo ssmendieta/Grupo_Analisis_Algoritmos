@@ -6,10 +6,10 @@ import {
   MoveRight,
   PackageOpen,
   ArrowDown01,
+  Network,
 } from "lucide-react";
 
 const TOOLS = [
-
   {
     id: "johnson",
     title: "Johnson",
@@ -41,9 +41,18 @@ const TOOLS = [
   {
     id: "sorts",
     title: "Sorts",
-    subtitle: "Visualización de ordenamiento: Selection, Insertion, Merge y Shell.",
+    subtitle:
+      "Visualización de ordenamiento: Selection, Insertion, Merge y Shell.",
     tool: "sorts",
     Icon: ArrowDown01,
+  },
+  {
+    id: "binaryTree",
+    title: "Árbol Binario",
+    subtitle:
+      "Inserción, recorridos (inorder, preorder, postorder) y reconstrucción de árboles BST.",
+    tool: "binaryTree",
+    Icon: Network,
   },
 ];
 
@@ -57,6 +66,8 @@ export default function GraficadorMenu() {
     } else if (tool === "editor") {
       // Si es el editor libre
       navigate("/graficador/editor");
+    } else if (tool === "binaryTree") {
+      navigate("/graficador/binary-tree");
     } else {
       // Para los demás (Johnson, Northwest, etc.) usamos parámetros
       navigate(`/graficador/editor?tool=${tool}`);

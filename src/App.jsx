@@ -13,7 +13,8 @@ import GraficadorMenu from "./paginas/GraficadorMenu";
 import AnalisisInfo from "./paginas/AlgoInfo";
 import PaginaInicio from "./paginas/PaginaInicio";
 import Matriz from "./paginas/Matriz";
-import SortsPage from "./paginas/Sorts"; 
+import SortsPage from "./paginas/Sorts";
+import BinaryTreePage from "./paginas/BinaryTree";
 
 const HELP_CONTENT = {
   sorts: {
@@ -66,12 +67,23 @@ const HELP_CONTENT = {
       "Exporta e importa tu grafo desde el panel superior.",
     ],
   },
+  binaryTree: {
+    title: "Árbol Binario · guía rápida",
+    badge: "Árbol de búsqueda",
+    steps: [
+      "Escribe un número en el campo 'Construir árbol' y presiona Insertar (o Enter).",
+      "Usa 'Árbol Aleatorio' para generar un árbol con nodos y rango de valores que elijas.",
+      "Presiona Inorder, Preorder o Postorder para ver el recorrido resaltado en el árbol.",
+      "En 'Reconstruir árbol' ingresa un inorder y postorder para reproducir cualquier árbol.",
+    ],
+  },
 };
 
 function getHelpForLocation(pathname, search) {
   if (pathname === "/graficador/sorts") return HELP_CONTENT.sorts;
+  if (pathname === "/graficador/binary-tree") return HELP_CONTENT.binaryTree;
   if (pathname !== "/graficador/editor") return null;
-  
+
   const params = new URLSearchParams(search);
   const tool = params.get("tool") || "editor";
   return HELP_CONTENT[tool] || HELP_CONTENT.editor;
@@ -199,7 +211,9 @@ export default function App() {
         <Route path="/algoritmos" element={<AnalisisInfo />} />
         <Route path="/graficador" element={<GraficadorMenu />} />
         <Route path="/graficador/editor" element={<Graficador />} />
-        <Route path="/graficador/sorts" element={<SortsPage />} /> {/* <--- RUTA PARA SORTS */}
+        <Route path="/graficador/sorts" element={<SortsPage />} />{" "}
+        <Route path="/graficador/binary-tree" element={<BinaryTreePage />} />
+        {/* <--- RUTA PARA SORTS */}
         <Route path="/matriz" element={<Matriz />} />
       </Routes>
     </Router>
