@@ -24,6 +24,8 @@ import AssignmentModal from "../components/AsignacionModal.jsx";
 import MatrizRecursosTareasModal from "../components/MatrizRecursosTareasModal.jsx";
 import NorthwestModal from "../components/NorthwestModal.jsx";
 import MatrizTransporteModal from "../components/MatrizTransporteModal.jsx";
+import KruskalModal from "../components/KruskalModal.jsx";
+import { buildKruskalGraphResult } from "../utils/kruskal";
 
 const GraphEditor = () => {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ const GraphEditor = () => {
       t === "johnson" ||
       t === "asignacion" ||
       t === "northwest" ||
+      t === "kruskal" ||
       t === "editor"
     )
       return t;
@@ -45,6 +48,7 @@ const GraphEditor = () => {
   const isAssignmentOnlyTool = tool === "asignacion";
   const hideEditorSidebar = tool === "northwest";
   const showFreeToolbar = tool === "editor";
+  const isKruskalTool = tool === "kruskal";
 
   const toolPrevRef = useRef(null);
 
@@ -82,7 +86,9 @@ const GraphEditor = () => {
   const [activeTab, setActiveTab] = useState("export");
 
   const [showJohnsonModal, setShowJohnsonModal] = useState(false);
+  const [showKruskalModal, setShowKruskalModal] = useState(false);
   const [algorithmResult, setAlgorithmResult] = useState(null);
+  const [kruskalNotice, setKruskalNotice] = useState(null);
 
   const [assignmentMode, setAssignmentMode] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
@@ -177,17 +183,28 @@ const GraphEditor = () => {
       setAssignmentMode(true);
       setNorthwestMode(false);
       setAlgorithmResult(null);
+      setKruskalNotice(null);
       setShowAssignmentModal(false);
     } else if (tool === "northwest") {
       setHasWeights(true);
       setAssignmentMode(false);
       setNorthwestMode(true);
       setAlgorithmResult(null);
+      setKruskalNotice(null);
     } else if (tool === "johnson") {
       setAssignmentMode(false);
       setNorthwestMode(false);
       setAssignmentResult(null);
       setAssignmentMultiNotice(null);
+      setKruskalNotice(null);
+    } else if (tool === "kruskal") {
+      setHasWeights(true);
+      setIsDirected(false);
+      setAssignmentMode(false);
+      setNorthwestMode(false);
+      setAssignmentResult(null);
+      setAssignmentMultiNotice(null);
+      setKruskalNotice(null);
     } else if (tool === "editor") {
       if (prev === "asignacion") {
         setAssignmentMode(false);
@@ -197,6 +214,7 @@ const GraphEditor = () => {
       if (prev === "northwest") {
         setNorthwestMode(false);
       }
+      setKruskalNotice(null);
     }
 
     toolPrevRef.current = tool;
@@ -271,6 +289,14 @@ const GraphEditor = () => {
     }
     if (northwestResult) {
       data.savedNorthwestResult = northwestResult;
+    }
+    if (algorithmResult?.kind === "kruskal") {
+      data.savedKruskalResult = {
+        mode: algorithmResult.mode,
+        totalWeight: algorithmResult.totalWeight ?? algorithmResult.duration,
+        selectedEdgeIds: [...(algorithmResult.selectedEdgeIds || [])],
+        selectedNodeIds: [...(algorithmResult.selectedNodeIds || [])],
+      };
     }
     return JSON.stringify(data, null, 2);
   };
@@ -347,6 +373,24 @@ const GraphEditor = () => {
         setNorthwestResult(null);
         if (!data.savedAssignmentResult) setNorthwestMode(false);
       }
+
+      if (data.savedKruskalResult) {
+        const s = data.savedKruskalResult;
+        const selectedEdgeIds = new Set(s.selectedEdgeIds || []);
+        const selectedNodeIds = new Set(s.selectedNodeIds || []);
+        const kruskalResult = {
+          mode: s.mode === "kruskal-max" ? "max" : "min",
+          totalWeight: s.totalWeight,
+          selectedEdgeIds,
+          selectedNodeIds,
+          selectedEdges: data.edges.filter((edge) => selectedEdgeIds.has(edge.id)),
+          steps: [],
+        };
+        setAlgorithmResult(buildKruskalGraphResult(data.nodes, data.edges, kruskalResult));
+        setHasWeights(true);
+        setIsDirected(false);
+        navigate("/graficador/editor?tool=kruskal");
+      }
     } catch (err) {
       setImportError(err.message);
     }
@@ -380,6 +424,14 @@ const GraphEditor = () => {
     if (selectedNode === null) return;
 
     if (selectedNode === nodeId) {
+      if (isKruskalTool) {
+        setKruskalNotice(
+          "Kruskal no usa aristas de un nodo hacia sí mismo. Selecciona otro nodo como destino.",
+        );
+        setSelectedNode(null);
+        return;
+      }
+
       const loopEdge = {
         id: `loop-${nodeId}-${Date.now()}`,
         from: nodeId,
@@ -481,6 +533,7 @@ const GraphEditor = () => {
     setNorthwestResult(null);
     setNorthwestMode(false);
     setShowNorthwestResultsModal(false);
+    setKruskalNotice(null);
     [
       "graph_nodes",
       "graph_edges",
@@ -530,6 +583,13 @@ const GraphEditor = () => {
   const handleMouseUp = () => setDraggedNode(null);
 
   const addEdge = (edge) => {
+    if (isKruskalTool && (edge.from === edge.to || edge.isLoop)) {
+      setKruskalNotice(
+        "Kruskal no permite conectar un nodo consigo mismo. Usa dos nodos distintos.",
+      );
+      return;
+    }
+
     const edgeExists = edges.some((e) => {
       if (isDirected) return e.from === edge.from && e.to === edge.to;
       return (
@@ -537,7 +597,10 @@ const GraphEditor = () => {
         (e.from === edge.to && e.to === edge.from)
       );
     });
-    if (!edgeExists) setEdges([...edges, edge]);
+    if (!edgeExists) {
+      setEdges([...edges, edge]);
+      if (isKruskalTool) setKruskalNotice(null);
+    }
   };
 
   const handleWeightConfirm = () => {
@@ -659,7 +722,9 @@ const GraphEditor = () => {
                   ? "Asignación"
                   : tool === "northwest"
                     ? "Northwest"
-                    : "Graficador"}
+                    : tool === "kruskal"
+                      ? "Kruskal"
+                      : "Graficador"}
             </h1>
           </div>
 
@@ -671,43 +736,66 @@ const GraphEditor = () => {
               </div>
 
               <div className="space-y-4">
-                <div
-                  className={`flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 ${assignmentMode ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  <div>
-                    <span className="text-sm font-medium text-gray-300">
-                      Con Peso
-                    </span>
-                    {assignmentMode && tool === "editor" && (
-                      <div className="text-xs text-amber-400 mt-0.5">
-                        Requerido en asignación
+                {isKruskalTool ? (
+                  <>
+                    <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/25">
+                      <span className="text-sm font-bold text-sky-200">
+                        Pesos activados
+                      </span>
+                      <div className="text-xs text-slate-400 mt-1">
+                        Kruskal sí necesita pesos para ordenar las aristas.
                       </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setHasWeights(!hasWeights)}
-                    className={`w-11 h-6 rounded-full transition-colors relative ${hasWeights ? "bg-blue-600" : "bg-gray-700"}`}
-                    disabled={assignmentMode}
-                  >
+                    </div>
+                    <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
+                      <span className="text-sm font-bold text-cyan-200">
+                        Grafo no dirigido
+                      </span>
+                      <div className="text-xs text-slate-400 mt-1">
+                        Las direcciones se desactivan para resolver el árbol de expansión.
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
                     <div
-                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${hasWeights ? "translate-x-5" : ""}`}
-                    />
-                  </button>
-                </div>
+                      className={`flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 ${assignmentMode ? "opacity-50 pointer-events-none" : ""}`}
+                    >
+                      <div>
+                        <span className="text-sm font-medium text-gray-300">
+                          Con Peso
+                        </span>
+                        {assignmentMode && tool === "editor" && (
+                          <div className="text-xs text-amber-400 mt-0.5">
+                            Requerido en asignación
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setHasWeights(!hasWeights)}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${hasWeights ? "bg-blue-600" : "bg-gray-700"}`}
+                        disabled={assignmentMode}
+                      >
+                        <div
+                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${hasWeights ? "translate-x-5" : ""}`}
+                        />
+                      </button>
+                    </div>
 
-                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5">
-                  <span className="text-sm font-medium text-gray-300">
-                    Con Dirección
-                  </span>
-                  <button
-                    onClick={() => setIsDirected(!isDirected)}
-                    className={`w-11 h-6 rounded-full transition-colors relative ${isDirected ? "bg-blue-600" : "bg-gray-700"}`}
-                  >
-                    <div
-                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isDirected ? "translate-x-5" : ""}`}
-                    />
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5">
+                      <span className="text-sm font-medium text-gray-300">
+                        Con Dirección
+                      </span>
+                      <button
+                        onClick={() => setIsDirected(!isDirected)}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${isDirected ? "bg-blue-600" : "bg-gray-700"}`}
+                      >
+                        <div
+                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isDirected ? "translate-x-5" : ""}`}
+                        />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </section>
 
@@ -815,6 +903,66 @@ const GraphEditor = () => {
               </section>
             )}
 
+            {isKruskalTool && (
+              <section>
+                <div className="flex items-center gap-2 mb-3 text-xs font-bold text-cyan-400 uppercase tracking-widest">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M6 3v6" />
+                    <path d="M18 15v6" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="12" r="3" />
+                    <path d="M9 12h6" />
+                  </svg>
+                  Modo Kruskal
+                </div>
+                <div className="space-y-2">
+                  <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                    <div className="text-xs font-bold text-cyan-300 mb-1">
+                      Reglas
+                    </div>
+                    <div className="text-xs text-gray-400 leading-5">
+                      Usa pesos, se resuelve sin dirección y no admite bucles
+                      de un nodo hacia sí mismo.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                    <div className="text-xs font-bold text-sky-300 mb-1">
+                      Estado actual
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {nodes.length} nodo{nodes.length !== 1 ? "s" : ""} · {edges.length} arista{edges.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  {algorithmResult?.kind === "kruskal" && (
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="text-xs font-bold text-emerald-400 mb-1">
+                        {algorithmResult.mode === "kruskal-min"
+                          ? "↓ Árbol mínimo"
+                          : "↑ Árbol máximo"}
+                      </div>
+                      <div className="text-lg font-black text-emerald-300">
+                        Peso: {algorithmResult.totalWeight ?? algorithmResult.duration}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowKruskalModal(true)}
+                    className="w-full mt-2 py-2.5 rounded-lg text-xs font-bold text-cyan-200 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 transition-colors"
+                  >
+                    Ejecutar Kruskal
+                  </button>
+                </div>
+              </section>
+            )}
+
             {tool === "editor" && (
               <section>
                 <div className="flex items-center gap-2 mb-4 text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -906,6 +1054,30 @@ const GraphEditor = () => {
             Menú
           </RouterLink>
 
+          <div className="hidden xl:flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 overflow-x-auto">
+            {[
+              ["Libre", "/graficador/editor?tool=editor", tool === "editor"],
+              ["Johnson", "/graficador/editor?tool=johnson", tool === "johnson"],
+              ["Asignación", "/graficador/editor?tool=asignacion", tool === "asignacion"],
+              ["Northwest", "/graficador/editor?tool=northwest", tool === "northwest"],
+              ["Sorts", "/graficador/sorts", false],
+              ["Árbol", "/graficador/binary-tree", false],
+              ["Kruskal", "/graficador/editor?tool=kruskal", tool === "kruskal"],
+            ].map(([label, to, active]) => (
+              <RouterLink
+                key={label}
+                to={to}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                  active
+                    ? "bg-sky-400/20 text-sky-100"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {label}
+              </RouterLink>
+            ))}
+          </div>
+
           <div className="flex items-center justify-end gap-2 flex-wrap min-w-0">
             {showFreeToolbar && (
               <>
@@ -927,6 +1099,12 @@ const GraphEditor = () => {
                 >
                   Northwest
                 </button>
+                <button
+                  onClick={() => navigate("/graficador/editor?tool=kruskal")}
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/25 transition-colors"
+                >
+                  Kruskal
+                </button>
               </>
             )}
 
@@ -943,6 +1121,15 @@ const GraphEditor = () => {
               <button
                 onClick={openAsignacionModal}
                 className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/25 transition-colors"
+              >
+                Solución
+              </button>
+            )}
+
+            {isKruskalTool && (
+              <button
+                onClick={() => setShowKruskalModal(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/25 transition-colors"
               >
                 Solución
               </button>
@@ -1013,6 +1200,26 @@ const GraphEditor = () => {
               onClick={() => setAssignmentMultiNotice(null)}
               className="shrink-0 p-1 rounded-md hover:bg-white/10 text-amber-200/90"
               aria-label="Cerrar aviso"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {kruskalNotice && (
+          <div
+            className="flex-shrink-0 px-4 py-2.5 flex items-start justify-between gap-3 border-b border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-50 text-xs sm:text-sm leading-relaxed"
+            role="status"
+          >
+            <span>
+              <strong className="text-cyan-300">Aviso Kruskal:</strong>{" "}
+              {kruskalNotice}
+            </span>
+            <button
+              type="button"
+              onClick={() => setKruskalNotice(null)}
+              className="shrink-0 p-1 rounded-md hover:bg-white/10 text-cyan-200/90"
+              aria-label="Cerrar aviso Kruskal"
             >
               <X size={16} />
             </button>
@@ -1479,13 +1686,19 @@ const GraphEditor = () => {
                 if (!fromNode || !toNode) return null;
 
                 let edgeColor, edgeWidth;
+                const resultEdge = !assignmentMode
+                  ? algorithmResult?.edges?.find((e) => e.id === edge.id)
+                  : null;
+
                 if (assignmentMode) {
                   edgeColor = getAssignmentEdgeColor(edge);
                   edgeWidth = getAssignmentEdgeWidth(edge);
+                } else if (algorithmResult?.kind === "kruskal") {
+                  edgeColor = resultEdge?.highlighted
+                    ? "#22d3ee"
+                    : "rgba(255,255,255,0.22)";
+                  edgeWidth = resultEdge?.highlighted ? 4 : 1.5;
                 } else {
-                  const resultEdge = algorithmResult?.edges?.find(
-                    (e) => e.id === edge.id,
-                  );
                   edgeColor = resultEdge?.highlighted
                     ? "#60a5fa"
                     : resultEdge?.critical
@@ -1495,9 +1708,6 @@ const GraphEditor = () => {
                     resultEdge?.highlighted || resultEdge?.critical ? 4 : 2;
                 }
 
-                const resultEdge = !assignmentMode
-                  ? algorithmResult?.edges?.find((e) => e.id === edge.id)
-                  : null;
                 const edgeLabel = resultEdge
                   ? `${edge.weight ?? 1}${resultEdge.slack !== "-" ? ` | h:${resultEdge.slack}` : ""}`
                   : `${edge.weight ?? 1}`;
@@ -1722,6 +1932,62 @@ const GraphEditor = () => {
               const isCriticalNode = !!resultNode?.critical;
               const isHighlightedNode =
                 algorithmResult?.highlightPath?.includes(node.id);
+
+              if (algorithmResult?.kind === "kruskal") {
+                const selected = !!resultNode?.critical;
+                return (
+                  <div
+                    key={node.id}
+                    onClick={(e) => handleNodeClick(e, node.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (hasMoved) return;
+                      setContextMenu({
+                        nodeId: node.id,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    onMouseDown={(e) => handleMouseDown(e, node.id)}
+                    style={{
+                      position: "absolute",
+                      left: node.x - 23,
+                      top: node.y - 23,
+                      width: "46px",
+                      height: "46px",
+                      borderRadius: "100%",
+                      backgroundColor: selected
+                        ? "#0891b2"
+                        : selectedNode === node.id
+                          ? "#4CAF50"
+                          : "#2196F3",
+                      border: selected
+                        ? "3px solid #67e8f9"
+                        : selectedNode === node.id
+                          ? "3px solid #8BC34A"
+                          : "3px solid #fff",
+                      boxShadow: selected
+                        ? "0 0 18px rgba(34,211,238,0.65)"
+                        : selectedNode === node.id
+                          ? "0 0 12px #4CAF5080"
+                          : "0 2px 8px rgba(0,0,0,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor: draggedNode === node.id ? "grabbing" : "grab",
+                      transition: draggedNode === node.id ? "none" : "all 0.2s",
+                      fontSize:
+                        node.label && node.label.length > 2 ? "9px" : "13px",
+                      userSelect: "none",
+                    }}
+                  >
+                    {getNodeDisplay(node)}
+                  </div>
+                );
+              }
 
               if (!algorithmResult) {
                 return (
@@ -2367,11 +2633,19 @@ const GraphEditor = () => {
             {!assignmentMode && !northwestMode && algorithmResult && (
               <span className="flex items-center gap-2">
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${algorithmResult.mode === "max" ? "bg-red-500" : "bg-sky-400"}`}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    algorithmResult.kind === "kruskal"
+                      ? "bg-cyan-400"
+                      : algorithmResult.mode === "max"
+                        ? "bg-red-500"
+                        : "bg-sky-400"
+                  }`}
                 />
-                {algorithmResult.mode === "max"
-                  ? `Duración: ${algorithmResult.duration}`
-                  : `Resultado: ${algorithmResult.duration}`}
+                {algorithmResult.kind === "kruskal"
+                  ? `${algorithmResult.mode === "kruskal-min" ? "Kruskal mín" : "Kruskal máx"}: ${algorithmResult.totalWeight ?? algorithmResult.duration}`
+                  : algorithmResult.mode === "max"
+                    ? `Duración: ${algorithmResult.duration}`
+                    : `Resultado: ${algorithmResult.duration}`}
               </span>
             )}
           </div>
@@ -2385,6 +2659,14 @@ const GraphEditor = () => {
           edges={edges}
           isDirected={isDirected}
           hasWeights={hasWeights}
+          onApplyResult={setAlgorithmResult}
+        />
+
+        <KruskalModal
+          open={showKruskalModal}
+          onClose={() => setShowKruskalModal(false)}
+          nodes={nodes}
+          edges={edges}
           onApplyResult={setAlgorithmResult}
         />
 

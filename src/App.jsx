@@ -77,6 +77,16 @@ const HELP_CONTENT = {
       "En 'Reconstruir árbol' ingresa un inorder y postorder para reproducir cualquier árbol.",
     ],
   },
+  kruskal: {
+    title: "Kruskal · guía rápida",
+    badge: "Árbol de expansión",
+    steps: [
+      "Crea nodos con doble clic en el lienzo y conéctalos usando clic derecho → Conectar.",
+      "Asigna un peso a cada arista cuando se te solicite (el grafo debe ser no dirigido con pesos).",
+      "Pulsa el botón 'Kruskal' en la barra superior para abrir el asistente.",
+      "Elige Mínimo (menor costo) o Máximo (mayor costo) y observa el árbol de expansión resaltado en el grafo.",
+    ],
+  },
 };
 
 function getHelpForLocation(pathname, search) {

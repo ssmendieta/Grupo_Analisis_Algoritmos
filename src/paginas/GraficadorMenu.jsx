@@ -54,6 +54,14 @@ const TOOLS = [
     tool: "binaryTree",
     Icon: Network,
   },
+  {
+    id: "kruskal",
+    title: "Kruskal",
+    subtitle:
+      "Árbol de expansión mínimo o máximo con peso final resaltado.",
+    tool: "kruskal",
+    Icon: GitBranch,
+  },
 ];
 
 export default function GraficadorMenu() {
